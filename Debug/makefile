@@ -34,34 +34,34 @@ $(wildcard ../makefile.init) \
 $(wildcard ../makefile.targets) \
 
 
-BUILD_ARTIFACT_NAME := ENGN_BTN
+BUILD_ARTIFACT_NAME := multisteering-wheel
 BUILD_ARTIFACT_EXTENSION := elf
 BUILD_ARTIFACT_PREFIX :=
 BUILD_ARTIFACT := $(BUILD_ARTIFACT_PREFIX)$(BUILD_ARTIFACT_NAME)$(if $(BUILD_ARTIFACT_EXTENSION),.$(BUILD_ARTIFACT_EXTENSION),)
 
 # Add inputs and outputs from these tool invocations to the build variables 
 EXECUTABLES += \
-ENGN_BTN.elf \
+multisteering-wheel.elf \
 
 MAP_FILES += \
-ENGN_BTN.map \
+multisteering-wheel.map \
 
 SIZE_OUTPUT += \
 default.size.stdout \
 
 OBJDUMP_LIST += \
-ENGN_BTN.list \
+multisteering-wheel.list \
 
 
 # All Target
 all: main-build
 
 # Main-build Target
-main-build: ENGN_BTN.elf secondary-outputs
+main-build: multisteering-wheel.elf secondary-outputs
 
 # Tool invocations
-ENGN_BTN.elf ENGN_BTN.map: $(OBJS) $(USER_OBJS) C:\Users\user\STM32CubeIDE\workspace_1.16.1\ENGN_BTN\STM32F103C8TX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "ENGN_BTN.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m3 -T"C:\Users\user\STM32CubeIDE\workspace_1.16.1\ENGN_BTN\STM32F103C8TX_FLASH.ld" --specs=nosys.specs -Wl,-Map="ENGN_BTN.map" -Wl,--gc-sections -static --specs=nano.specs -mfloat-abi=soft -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+multisteering-wheel.elf multisteering-wheel.map: $(OBJS) $(USER_OBJS) C:\Users\Georgiy\Documents\GitHub\multisteering-wheel\STM32F103C8TX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "multisteering-wheel.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m3 -T"C:\Users\Georgiy\Documents\GitHub\multisteering-wheel\STM32F103C8TX_FLASH.ld" --specs=nosys.specs -Wl,-Map="multisteering-wheel.map" -Wl,--gc-sections -static --specs=nano.specs -mfloat-abi=soft -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
@@ -70,14 +70,14 @@ default.size.stdout: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
 	@echo 'Finished building: $@'
 	@echo ' '
 
-ENGN_BTN.list: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-objdump -h -S $(EXECUTABLES) > "ENGN_BTN.list"
+multisteering-wheel.list: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-objdump -h -S $(EXECUTABLES) > "multisteering-wheel.list"
 	@echo 'Finished building: $@'
 	@echo ' '
 
 # Other Targets
 clean:
-	-$(RM) ENGN_BTN.elf ENGN_BTN.list ENGN_BTN.map default.size.stdout
+	-$(RM) default.size.stdout multisteering-wheel.elf multisteering-wheel.list multisteering-wheel.map
 	-@echo ' '
 
 secondary-outputs: $(SIZE_OUTPUT) $(OBJDUMP_LIST)
