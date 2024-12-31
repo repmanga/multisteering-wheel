@@ -83,7 +83,7 @@ void button_state()
 		  flag_btn2 = 1;
 		  	  /* SEND CAN STOP ENGINE MSG HERE */
 		  HAL_Delay(100);
-		  HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+		  HAL_GPIO_TogglePin(LED2_GPIO_Port, LED2_Pin);
 	  	}
 	  if (HAL_GPIO_ReadPin(BTN_2_GPIO_Port, BTN_2_Pin) == 0 && flag_btn2 == 1) {
 		  flag_btn2 = 0;
@@ -97,14 +97,14 @@ void button_state()
 		  	  /* SEND CAN STOP ENGINE MSG HERE */
 
 		  	  HAL_Delay(100);
-		  	  HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+		  	  HAL_GPIO_TogglePin(LED3_GPIO_Port, LED3_Pin);
 	  	}
-	  if (HAL_GPIO_ReadPin(BTN_3_GPIO_Port, BTN_3_Pin) == 0 && flag_btn2 == 1) {
+	  if (HAL_GPIO_ReadPin(BTN_3_GPIO_Port, BTN_3_Pin) == 0 && flag_btn3 == 1) {
 	 		  flag_btn3 = 0;
 	 		  //HAL_Delay(100);
 	 	}
 	  /* GEAR DOWN BUTTON HANDLER */
-	  if (HAL_GPIO_ReadPin(BTN_4_GPIO_Port, BTN_4_Pin) && (HAL_GetTick() - time_ms > 150) && flag_btn2 == 0) {
+	  if (HAL_GPIO_ReadPin(BTN_4_GPIO_Port, BTN_4_Pin) && (HAL_GetTick() - time_ms > 150) && flag_btn4 == 0) {
 		  	  HAL_GPIO_TogglePin(LED4_GPIO_Port, LED4_Pin);
 		  	  flag_btn4 = 1;
 		  	  /* SEND CAN STOP ENGINE MSG HERE */
@@ -112,7 +112,7 @@ void button_state()
 		  	  HAL_Delay(100);
 		  	  HAL_GPIO_TogglePin(LED4_GPIO_Port, LED4_Pin);
 	  	}
-	  if (HAL_GPIO_ReadPin(BTN_4_GPIO_Port, BTN_4_Pin) == 0 && flag_btn2 == 1) {
+	  if (HAL_GPIO_ReadPin(BTN_4_GPIO_Port, BTN_4_Pin) == 0 && flag_btn4 == 1) {
 	 		  flag_btn4 = 0;
 	 		  //HAL_Delay(100);
 	 	}
