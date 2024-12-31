@@ -22,6 +22,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "string.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -50,6 +51,8 @@ CAN_RxHeaderTypeDef RxHeader;
 uint8_t TxData[8] = {0,0,0,0,0,0,0,0};
 uint8_t RxData[8] = {0,0,0,0,0,0,0,0};
 uint32_t TxMailbox;
+uint8_t flag_btn1, flag_btn2, flag_btn3, flag_btn4, flag_btn5, flag_btn6 = 0; // Some flags for buttons
+volatile uint32_t time_ms = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -58,33 +61,67 @@ static void MX_GPIO_Init(void);
 static void MX_CAN_Init(void);
 static void MX_USART1_UART_Init(void);
 /* USER CODE BEGIN PFP */
+void button_state()
+{
+	  /* ENGINE STARTUP BUTTON HANDLER */
+	  if (HAL_GPIO_ReadPin(BTN_1_GPIO_Port, BTN_1_Pin) && (HAL_GetTick() - time_ms > 150) && flag_btn1 == 0) {
+		  HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+		  flag_btn1 = 1;
+		  while(HAL_GPIO_ReadPin(BTN_1_GPIO_Port, BTN_1_Pin)){
+		  		  /* SEND CAN MSG ENGINE STARTUP HERE */
+		  		  /* ENGINE STARTUP SWITCH IS NOT LATCHING ! */
+		  }
+		  HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+	  	}
+	  if (HAL_GPIO_ReadPin(BTN_1_GPIO_Port, BTN_1_Pin) == 0 && flag_btn1 == 1) {
+	 		  flag_btn1 = 0;
+	 		  //HAL_Delay(100);
+	 	}
+	  /* ENGINE STOP BUTTON HANDLER */
+	  if (HAL_GPIO_ReadPin(BTN_2_GPIO_Port, BTN_2_Pin) && (HAL_GetTick() - time_ms > 150) && flag_btn2 == 0) {
+		  HAL_GPIO_TogglePin(LED2_GPIO_Port, LED2_Pin);
+		  flag_btn2 = 1;
+		  	  /* SEND CAN STOP ENGINE MSG HERE */
+		  HAL_Delay(100);
+		  HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+	  	}
+	  if (HAL_GPIO_ReadPin(BTN_2_GPIO_Port, BTN_2_Pin) == 0 && flag_btn2 == 1) {
+		  flag_btn2 = 0;
+	 		  //HAL_Delay(100);
+	 	}
+	 /* GEAR UP BUTTON HANDLER */
+	  if (HAL_GPIO_ReadPin(BTN_3_GPIO_Port, BTN_3_Pin) && (HAL_GetTick() - time_ms > 150) && flag_btn3 == 0) {
 
+		  HAL_GPIO_TogglePin(LED3_GPIO_Port, LED3_Pin);
+		  flag_btn3 = 1;
+		  	  /* SEND CAN STOP ENGINE MSG HERE */
+
+		  	  HAL_Delay(100);
+		  	  HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+	  	}
+	  if (HAL_GPIO_ReadPin(BTN_3_GPIO_Port, BTN_3_Pin) == 0 && flag_btn2 == 1) {
+	 		  flag_btn3 = 0;
+	 		  //HAL_Delay(100);
+	 	}
+	  /* GEAR DOWN BUTTON HANDLER */
+	  if (HAL_GPIO_ReadPin(BTN_4_GPIO_Port, BTN_4_Pin) && (HAL_GetTick() - time_ms > 150) && flag_btn2 == 0) {
+		  	  HAL_GPIO_TogglePin(LED4_GPIO_Port, LED4_Pin);
+		  	  flag_btn4 = 1;
+		  	  /* SEND CAN STOP ENGINE MSG HERE */
+
+		  	  HAL_Delay(100);
+		  	  HAL_GPIO_TogglePin(LED4_GPIO_Port, LED4_Pin);
+	  	}
+	  if (HAL_GPIO_ReadPin(BTN_4_GPIO_Port, BTN_4_Pin) == 0 && flag_btn2 == 1) {
+	 		  flag_btn4 = 0;
+	 		  //HAL_Delay(100);
+	 	}
+
+}
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
-
-{
-	if(GPIO_Pin == BTN_1_Pin)
-	{
-		TxData[4] = 0x01;
-		while(HAL_CAN_GetTxMailboxesFreeLevel(&hcan) == 0);
-		HAL_CAN_AddTxMessage(&hcan, &TxHeader, TxData, &TxMailbox);
-		//while(HAL_GPIO_ReadPin(BTN_1_GPIO_Port, BTN_1_Pin));
-	}
-	if(GPIO_Pin == BTN_2_Pin)
-	{
-		TxData[4] = 0x02;
-		while(HAL_CAN_GetTxMailboxesFreeLevel(&hcan) == 0);
-		HAL_CAN_AddTxMessage(&hcan, &TxHeader, TxData, &TxMailbox);
-		//while(HAL_GPIO_ReadPin(BTN_2_GPIO_Port, BTN_2_Pin));
-	}
-	TxData[4] = 0x00;
-	while(HAL_CAN_GetTxMailboxesFreeLevel(&hcan) == 0);
-	HAL_CAN_AddTxMessage(&hcan, &TxHeader, TxData, &TxMailbox);
-}
-
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 {
     if(HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &RxHeader, RxData) == HAL_OK)
@@ -150,11 +187,12 @@ int main(void)
   HAL_GPIO_WritePin(CAN_LED_GPIO_Port, CAN_LED_Pin, 0);
   TxHeader.StdId = 0x642;
   TxHeader.ExtId = 0;
-  TxHeader.RTR = CAN_RTR_DATA; //CAN_RTR_REMOTE
-  TxHeader.IDE = CAN_ID_STD;   // CAN_ID_EXT
+  TxHeader.RTR = CAN_RTR_DATA; // CAN_RTR_REMOTE
+  TxHeader.IDE = CAN_ID_STD;   // USE STANDART ID
   TxHeader.DLC = 8;
   TxHeader.TransmitGlobalTime = 0;
   while(HAL_CAN_Start(&hcan) == HAL_ERROR);
+  /* SOME LED BLINK FOR SUCCESSFUL STARTUP*/
   HAL_CAN_ActivateNotification(&hcan, CAN_IT_RX_FIFO0_MSG_PENDING);
   HAL_GPIO_WritePin(GPIOB, LED1_Pin|LED2_Pin|LED3_Pin|LED4_Pin, 1);
   HAL_Delay(200);
@@ -162,27 +200,14 @@ int main(void)
   HAL_GPIO_WritePin(GPIOB, LED1_Pin|LED2_Pin|LED3_Pin|LED4_Pin, 0);
   HAL_Delay(200);
   HAL_GPIO_WritePin(CAN_LED_GPIO_Port, CAN_LED_Pin, 0);
+  time_ms = HAL_GetTick();
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	if(HAL_GPIO_ReadPin(BTN_1_GPIO_Port, BTN_1_Pin)){
-			HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
-	}
-	if(HAL_GPIO_ReadPin(BTN_2_GPIO_Port, BTN_2_Pin)){
-			HAL_GPIO_TogglePin(LED2_GPIO_Port, LED2_Pin);
-	}
-	if(HAL_GPIO_ReadPin(BTN_3_GPIO_Port, BTN_3_Pin)){
-			HAL_GPIO_TogglePin(LED3_GPIO_Port, LED3_Pin);
-	}
-	if(HAL_GPIO_ReadPin(BTN_4_GPIO_Port, BTN_4_Pin)){
-			HAL_GPIO_TogglePin(LED4_GPIO_Port, LED4_Pin);
-	}
-	if(HAL_GPIO_ReadPin(BTN_1_GPIO_Port, BTN_1_Pin) && HAL_GPIO_ReadPin(BTN_2_GPIO_Port, BTN_2_Pin)){
-		HAL_NVIC_SystemReset();
-	}
+	  button_state();
     /* USER CODE END WHILE */
     /* USER CODE BEGIN 3 */
   }
