@@ -1258,7 +1258,7 @@ int can_msg_handler(uint8_t typemsg){
  80008fc:	4b40      	ldr	r3, [pc, #256]	@ (8000a00 <can_msg_handler+0x138>)
  80008fe:	2201      	movs	r2, #1
  8000900:	711a      	strb	r2, [r3, #4]
-	while(HAL_CAN_GetTxMailboxesFreeLevel(&hcan) == 0);
+	while(HAL_CAN_GetTxMailboxesFreeLevel(&hcan) == 0); //CAN SW#0
  8000902:	bf00      	nop
  8000904:	483f      	ldr	r0, [pc, #252]	@ (8000a04 <can_msg_handler+0x13c>)
  8000906:	f000 fd4c 	bl	80013a2 <HAL_CAN_GetTxMailboxesFreeLevel>
@@ -1284,7 +1284,7 @@ int can_msg_handler(uint8_t typemsg){
  8000926:	4b35      	ldr	r3, [pc, #212]	@ (80009fc <can_msg_handler+0x134>)
  8000928:	f240 6242 	movw	r2, #1602	@ 0x642
  800092c:	601a      	str	r2, [r3, #0]
-	TxData[4] = 0b00000010; // TODO: check ECU settings for correct stop switch address
+	TxData[4] = 0b00000010; //CAN SW#1
  800092e:	4b34      	ldr	r3, [pc, #208]	@ (8000a00 <can_msg_handler+0x138>)
  8000930:	2202      	movs	r2, #2
  8000932:	711a      	strb	r2, [r3, #4]
@@ -1314,9 +1314,9 @@ int can_msg_handler(uint8_t typemsg){
  8000958:	4b28      	ldr	r3, [pc, #160]	@ (80009fc <can_msg_handler+0x134>)
  800095a:	f240 6242 	movw	r2, #1602	@ 0x642
  800095e:	601a      	str	r2, [r3, #0]
-	TxData[4] = 0b00000010;
+	TxData[4] = 0b00000100; //CAN SW#2
  8000960:	4b27      	ldr	r3, [pc, #156]	@ (8000a00 <can_msg_handler+0x138>)
- 8000962:	2202      	movs	r2, #2
+ 8000962:	2204      	movs	r2, #4
  8000964:	711a      	strb	r2, [r3, #4]
 	while(HAL_CAN_GetTxMailboxesFreeLevel(&hcan) == 0);
  8000966:	bf00      	nop
@@ -1344,9 +1344,9 @@ int can_msg_handler(uint8_t typemsg){
  800098a:	4b1c      	ldr	r3, [pc, #112]	@ (80009fc <can_msg_handler+0x134>)
  800098c:	f240 6242 	movw	r2, #1602	@ 0x642
  8000990:	601a      	str	r2, [r3, #0]
-	TxData[4] = 0b00000010;
+	TxData[4] = 0b00001000; //CAN SW #3
  8000992:	4b1b      	ldr	r3, [pc, #108]	@ (8000a00 <can_msg_handler+0x138>)
- 8000994:	2202      	movs	r2, #2
+ 8000994:	2208      	movs	r2, #8
  8000996:	711a      	strb	r2, [r3, #4]
 	while(HAL_CAN_GetTxMailboxesFreeLevel(&hcan) == 0);
  8000998:	bf00      	nop
@@ -1374,9 +1374,9 @@ int can_msg_handler(uint8_t typemsg){
  80009bc:	4b0f      	ldr	r3, [pc, #60]	@ (80009fc <can_msg_handler+0x134>)
  80009be:	f240 6242 	movw	r2, #1602	@ 0x642
  80009c2:	601a      	str	r2, [r3, #0]
-	TxData[4] = 0b00000010;
+	TxData[4] = 0b00010000; //CAN SW#4
  80009c4:	4b0e      	ldr	r3, [pc, #56]	@ (8000a00 <can_msg_handler+0x138>)
- 80009c6:	2202      	movs	r2, #2
+ 80009c6:	2210      	movs	r2, #16
  80009c8:	711a      	strb	r2, [r3, #4]
 	while(HAL_CAN_GetTxMailboxesFreeLevel(&hcan) == 0);
  80009ca:	bf00      	nop

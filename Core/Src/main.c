@@ -457,14 +457,14 @@ int can_msg_handler(uint8_t typemsg){
 	/* MSG START ENGINE */
 	TxHeader.StdId = 0x642;
 	TxData[4] = 0b00000001; //using binary system to make bit set more clear
-	while(HAL_CAN_GetTxMailboxesFreeLevel(&hcan) == 0);
+	while(HAL_CAN_GetTxMailboxesFreeLevel(&hcan) == 0); //CAN SW#0
 	HAL_CAN_AddTxMessage(&hcan, &TxHeader, TxData, TxMailbox);
 	TxData[4] = 0x00;
 			break;
 		case 1:
 	/* MSG STOP ENGINE */
 	TxHeader.StdId = 0x642;
-	TxData[4] = 0b00000010; // TODO: check ECU settings for correct stop switch address
+	TxData[4] = 0b00000010; //CAN SW#1
 	while(HAL_CAN_GetTxMailboxesFreeLevel(&hcan) == 0);
 	HAL_CAN_AddTxMessage(&hcan, &TxHeader, TxData, TxMailbox);
 	TxData[4] = 0x00;
@@ -472,7 +472,7 @@ int can_msg_handler(uint8_t typemsg){
 		case 2:
 	/* MSG GEAR UP */
 	TxHeader.StdId = 0x642;
-	TxData[4] = 0b00000010;
+	TxData[4] = 0b00000100; //CAN SW#2
 	while(HAL_CAN_GetTxMailboxesFreeLevel(&hcan) == 0);
 	HAL_CAN_AddTxMessage(&hcan, &TxHeader, TxData, TxMailbox);
 	TxData[4] = 0x00;
@@ -480,7 +480,7 @@ int can_msg_handler(uint8_t typemsg){
 		case 3:
 	/* MSG GEAR DOWN */
 	TxHeader.StdId = 0x642;
-	TxData[4] = 0b00000010;
+	TxData[4] = 0b00001000; //CAN SW #3
 	while(HAL_CAN_GetTxMailboxesFreeLevel(&hcan) == 0);
 	HAL_CAN_AddTxMessage(&hcan, &TxHeader, TxData, TxMailbox);
 	TxData[4] = 0x00;
@@ -488,7 +488,7 @@ int can_msg_handler(uint8_t typemsg){
 		case 4:
 	/* MSG GEAR NEUTRAL */
 	TxHeader.StdId = 0x642;
-	TxData[4] = 0b00000010;
+	TxData[4] = 0b00010000; //CAN SW#4
 	while(HAL_CAN_GetTxMailboxesFreeLevel(&hcan) == 0);
 	HAL_CAN_AddTxMessage(&hcan, &TxHeader, TxData, TxMailbox);
 	TxData[4] = 0x00;
