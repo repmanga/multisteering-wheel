@@ -33,6 +33,7 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define PILOT_FINGER_TAP_SPEED 150
+#define DEBUG 0
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -51,6 +52,7 @@ CAN_RxHeaderTypeDef RxHeader;
 uint8_t TxData[8] = {0,0,0,0,0,0,0,0};
 uint8_t RxData[8] = {0,0,0,0,0,0,0,0};
 uint32_t TxMailbox;
+uint8_t msg_type = 255;
 uint8_t flag_btn1, flag_btn2, flag_btn3, flag_btn4, flag_btn5, flag_btn6 = 0; // Some flags for buttons
 volatile uint32_t time_ms = 0;
 /* USER CODE END PV */
@@ -62,6 +64,7 @@ static void MX_CAN_Init(void);
 static void MX_USART1_UART_Init(void);
 /* USER CODE BEGIN PFP */
 void button_handler(void);
+int can_msg_handler(uint8_t typemsg);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -359,7 +362,8 @@ void button_handler()
 		  flag_btn1 = 1;
 		  while(HAL_GPIO_ReadPin(BTN_1_GPIO_Port, BTN_1_Pin)){
 		  		  /* SEND CAN MSG ENGINE STARTUP HERE */
-
+			  msg_type = 0;
+			  while(can_msg_handler(msg_type));
 		  		  /* ENGINE STARTUP SWITCH IS NOT LATCHING ! */
 		  }
 		  HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
@@ -446,6 +450,55 @@ void button_handler()
 	 		  //HAL_Delay(100);
 	 	}
 
+}
+int can_msg_handler(uint8_t typemsg){
+	switch (typemsg) {
+		case 0:
+	/* MSG START ENGINE */
+	TxHeader.StdId = 0x642;
+	TxData[4] = 0b00000001; //using binary system to make bit set more clear
+	while(HAL_CAN_GetTxMailboxesFreeLevel(&hcan) == 0);
+	HAL_CAN_AddTxMessage(&hcan, &TxHeader, TxData, TxMailbox);
+	TxData[4] = 0x00;
+			break;
+		case 1:
+	/* MSG STOP ENGINE */
+	TxHeader.StdId = 0x642;
+	TxData[4] = 0b00000010; // TODO: check ECU settings for correct stop switch address
+	while(HAL_CAN_GetTxMailboxesFreeLevel(&hcan) == 0);
+	HAL_CAN_AddTxMessage(&hcan, &TxHeader, TxData, TxMailbox);
+	TxData[4] = 0x00;
+			break;
+		case 2:
+	/* MSG GEAR UP */
+	TxHeader.StdId = 0x642;
+	TxData[4] = 0b00000010;
+	while(HAL_CAN_GetTxMailboxesFreeLevel(&hcan) == 0);
+	HAL_CAN_AddTxMessage(&hcan, &TxHeader, TxData, TxMailbox);
+	TxData[4] = 0x00;
+			break;
+		case 3:
+	/* MSG GEAR DOWN */
+	TxHeader.StdId = 0x642;
+	TxData[4] = 0b00000010;
+	while(HAL_CAN_GetTxMailboxesFreeLevel(&hcan) == 0);
+	HAL_CAN_AddTxMessage(&hcan, &TxHeader, TxData, TxMailbox);
+	TxData[4] = 0x00;
+			break;
+		case 4:
+	/* MSG GEAR NEUTRAL */
+	TxHeader.StdId = 0x642;
+	TxData[4] = 0b00000010;
+	while(HAL_CAN_GetTxMailboxesFreeLevel(&hcan) == 0);
+	HAL_CAN_AddTxMessage(&hcan, &TxHeader, TxData, TxMailbox);
+	TxData[4] = 0x00;
+			break;
+		default:
+	/* MSG NONE */
+			break;
+		msg_type = 255; // SET NONE TYPE MSG
+		return 0; // return OK value to prevent endless loop
+	}
 }
 /* USER CODE END 4 */
 
