@@ -1362,11 +1362,12 @@ void startup() {
  8000960:	2b01      	cmp	r3, #1
  8000962:	d0f9      	beq.n	8000958 <startup+0x38>
 		;
-	/* SOME LED BLINK FOR SUCCESSFUL STARTUP*/
 	HAL_CAN_ActivateNotification(&hcan, CAN_IT_RX_FIFO0_MSG_PENDING);
  8000964:	2102      	movs	r1, #2
  8000966:	4816      	ldr	r0, [pc, #88]	@ (80009c0 <startup+0xa0>)
  8000968:	f000 fd2f 	bl	80013ca <HAL_CAN_ActivateNotification>
+	/* SOME LED BLINK FOR SUCCESSFUL STARTUP*/
+#if DEBUG == 1
 	HAL_GPIO_WritePin(GPIOB, LED1_Pin | LED2_Pin | LED3_Pin | LED4_Pin, 1);
  800096c:	2201      	movs	r2, #1
  800096e:	f44f 4170 	mov.w	r1, #61440	@ 0xf000
@@ -1375,15 +1376,16 @@ void startup() {
 	HAL_Delay(200);
  8000978:	20c8      	movs	r0, #200	@ 0xc8
  800097a:	f000 f9f7 	bl	8000d6c <HAL_Delay>
-	HAL_GPIO_WritePin(CAN_LED_GPIO_Port, CAN_LED_Pin, 1);
- 800097e:	2201      	movs	r2, #1
- 8000980:	f44f 5100 	mov.w	r1, #8192	@ 0x2000
- 8000984:	480c      	ldr	r0, [pc, #48]	@ (80009b8 <startup+0x98>)
- 8000986:	f001 fa22 	bl	8001dce <HAL_GPIO_WritePin>
 	HAL_GPIO_WritePin(GPIOB, LED1_Pin | LED2_Pin | LED3_Pin | LED4_Pin, 0);
- 800098a:	2200      	movs	r2, #0
- 800098c:	f44f 4170 	mov.w	r1, #61440	@ 0xf000
- 8000990:	480c      	ldr	r0, [pc, #48]	@ (80009c4 <startup+0xa4>)
+ 800097e:	2200      	movs	r2, #0
+ 8000980:	f44f 4170 	mov.w	r1, #61440	@ 0xf000
+ 8000984:	480f      	ldr	r0, [pc, #60]	@ (80009c4 <startup+0xa4>)
+ 8000986:	f001 fa22 	bl	8001dce <HAL_GPIO_WritePin>
+#endif
+	HAL_GPIO_WritePin(CAN_LED_GPIO_Port, CAN_LED_Pin, 1);
+ 800098a:	2201      	movs	r2, #1
+ 800098c:	f44f 5100 	mov.w	r1, #8192	@ 0x2000
+ 8000990:	4809      	ldr	r0, [pc, #36]	@ (80009b8 <startup+0x98>)
  8000992:	f001 fa1c 	bl	8001dce <HAL_GPIO_WritePin>
 	HAL_Delay(200);
  8000996:	20c8      	movs	r0, #200	@ 0xc8

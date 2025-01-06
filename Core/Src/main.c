@@ -514,12 +514,14 @@ void startup() {
 	TxHeader.TransmitGlobalTime = 0;
 	while (HAL_CAN_Start(&hcan) == HAL_ERROR)
 		;
-	/* SOME LED BLINK FOR SUCCESSFUL STARTUP*/
 	HAL_CAN_ActivateNotification(&hcan, CAN_IT_RX_FIFO0_MSG_PENDING);
+	/* SOME LED BLINK FOR SUCCESSFUL STARTUP*/
+#if DEBUG == 1
 	HAL_GPIO_WritePin(GPIOB, LED1_Pin | LED2_Pin | LED3_Pin | LED4_Pin, 1);
 	HAL_Delay(200);
-	HAL_GPIO_WritePin(CAN_LED_GPIO_Port, CAN_LED_Pin, 1);
 	HAL_GPIO_WritePin(GPIOB, LED1_Pin | LED2_Pin | LED3_Pin | LED4_Pin, 0);
+#endif
+	HAL_GPIO_WritePin(CAN_LED_GPIO_Port, CAN_LED_Pin, 1);
 	HAL_Delay(200);
 	HAL_GPIO_WritePin(CAN_LED_GPIO_Port, CAN_LED_Pin, 0);
 	time_ms = HAL_GetTick();
