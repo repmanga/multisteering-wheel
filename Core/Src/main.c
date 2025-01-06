@@ -57,12 +57,14 @@ uint8_t RxData_x600[8] = {0,0,0,0,0,0,0,0}; // (ID 0x600)
 uint8_t RxData_x601[8] = {0,0,0,0,0,0,0,0}; // (ID 0x601)
 //0x601 {0_AIN1, 1_AIN1, 2_AIN2, 3_AIN2, 4_AIN3, 5_AIN3,6_AIN4, 7_AIN4}
 uint8_t RxData_x602[8] = {0,0,0,0,0,0,0,0}; // (ID 0x602)
-//0x602 {0_RPM, 1_RPM, 2_TPS, 3_IAT, 4_MAP, 5_MAP, 6_INJPW, 7_INJPW}
+//0x602 {0_VSPD, 1_VSPD, 2_BARO, 3_OILT, 4_OILP, 5_FUELP, 6_CLT, 7_CLT}
 uint8_t RxData_x604[8] = {0,0,0,0,0,0,0,0}; // (ID 0x604)
 //0x604 {0_GEAR, 1_ECUTEMP, 2_BATT, 3_BATT, 4_ERRFLAG, 5_ERRFLAG, 6_FLAGS1, 7_ETHANOL}
 /* Value conversion on Nextion side */
 uint32_t TxMailbox;
 uint8_t msg_type = 255;
+uint16_t RPM, MAP, AIN0, AIN1, AIN2, AIN3, AIN4, VSPD, CLT, BATT, ERRFLAG = 0;
+uint8_t TPS, IAT, BARO, OILT, OILP, FUELP, GEAR, ECUTEMP = 0;
 uint8_t flag_btn1, flag_btn2, flag_btn3, flag_btn4, flag_btn5, flag_btn6 = 0; // Some flags for buttons
 uint32_t time_ms = 0;
 
