@@ -33,6 +33,7 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define PILOT_FINGER_TAP_SPEED 150
+#define DEBUG 1 // set "1" if use dev board
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -60,12 +61,13 @@ uint8_t RxData_x602[8] = {0,0,0,0,0,0,0,0}; // (ID 0x602)
 //0x602 {0_VSPD, 1_VSPD, 2_BARO, 3_OILT, 4_OILP, 5_FUELP, 6_CLT, 7_CLT}
 uint8_t RxData_x604[8] = {0,0,0,0,0,0,0,0}; // (ID 0x604)
 //0x604 {0_GEAR, 1_ECUTEMP, 2_BATT, 3_BATT, 4_ERRFLAG, 5_ERRFLAG, 6_FLAGS1, 7_ETHANOL}
-//TODO: set correct integer types for temp and so on (ref. to ECU manual for proper info)
 /* Value conversion on Nextion side */
 uint32_t TxMailbox;
 uint8_t msg_type = 255;
-uint16_t RPM, MAP, AIN0, AIN1, AIN2, AIN3, AIN4, VSPD, CLT, BATT, ERRFLAG = 0;
-uint8_t TPS, IAT, BARO, OILT, OILP, FUELP, GEAR, ECUTEMP = 0;
+uint16_t RPM, MAP, AIN0, AIN1, AIN2, AIN3, AIN4, VSPD, BATT, ERRFLAG = 0;
+int16_t CLT = 0;
+uint8_t TPS, BARO, OILT, OILP, FUELP, GEAR = 0;
+int8_t IAT, ECUTEMP = 0;
 uint8_t flag_btn1, flag_btn2, flag_btn3, flag_btn4, flag_btn5, flag_btn6 = 0; // Some flags for buttons
 uint32_t time_ms = 0;
 /* USER CODE END PV */
@@ -287,10 +289,10 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(CAN_LED_GPIO_Port, CAN_LED_Pin, GPIO_PIN_RESET);
-
+#if DEBUG == 1
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, LED1_Pin|LED2_Pin|LED3_Pin|LED4_Pin, GPIO_PIN_RESET);
-
+#endif
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(BUZZER_GPIO_Port, BUZZER_Pin, GPIO_PIN_RESET);
 
@@ -300,7 +302,7 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(CAN_LED_GPIO_Port, &GPIO_InitStruct);
-
+#if DEBUG == 1
   /*Configure GPIO pins : LED1_Pin LED2_Pin LED3_Pin LED4_Pin */
   GPIO_InitStruct.Pin = LED1_Pin|LED2_Pin|LED3_Pin|LED4_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
@@ -314,7 +316,7 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(BUZZER_GPIO_Port, &GPIO_InitStruct);
-
+#endif
   /*Configure GPIO pin : BTN_6_Pin */
   GPIO_InitStruct.Pin = BTN_6_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
@@ -340,45 +342,19 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 void button_handler()
 {
-	  /* ENGINE STARTUP BUTTON HANDLER */
-	  if (HAL_GPIO_ReadPin(BTN_1_GPIO_Port, BTN_1_Pin) && (HAL_GetTick() - time_ms > 150) && flag_btn1 == 0) {
-		  HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
-		  flag_btn1 = 1;
-		  while(HAL_GPIO_ReadPin(BTN_1_GPIO_Port, BTN_1_Pin)){
-		  		  /* SEND CAN MSG ENGINE STARTUP HERE */
-			  msg_type = 0;
-			  while(can_msg_handler(msg_type));
-		  		  /* ENGINE STARTUP SWITCH IS NOT LATCHING ! */
-		  }
-		  HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
-	  	}
-	  if (!HAL_GPIO_ReadPin(BTN_1_GPIO_Port, BTN_1_Pin) && flag_btn1 == 1) {
-	 		  flag_btn1 = 0;
-	 		  HAL_Delay(100);
-	 	}
-	  /* ENGINE STOP BUTTON HANDLER */
-	  if (HAL_GPIO_ReadPin(BTN_2_GPIO_Port, BTN_2_Pin) && (HAL_GetTick() - time_ms > 150) && flag_btn2 == 0) {
-		  HAL_GPIO_TogglePin(LED2_GPIO_Port, LED2_Pin);
-		  flag_btn2 = 1;
-		  	  /* SEND CAN STOP ENGINE MSG HERE */
-		  	  HAL_Delay(100);
-		  	  HAL_GPIO_TogglePin(LED2_GPIO_Port, LED2_Pin);
-	  	}
-	  if (!HAL_GPIO_ReadPin(BTN_2_GPIO_Port, BTN_2_Pin) && flag_btn2 == 1) {
-		  flag_btn2 = 0;
-	 		  HAL_Delay(100);
-	 	}
-	  /* NEUTRAL GEAR BUTTON COMBINATION HANDLER */
 	  HAL_Delay(PILOT_FINGER_TAP_SPEED);
+	  /* NEUTRAL GEAR BUTTON COMBINATION HANDLER */
 	  if (HAL_GPIO_ReadPin(BTN_3_GPIO_Port, BTN_3_Pin) && HAL_GPIO_ReadPin(BTN_4_GPIO_Port, BTN_4_Pin) && (HAL_GetTick() - time_ms > 150) && flag_btn3 == 0 && flag_btn4 == 0){
 	 		  flag_btn3 = 1;
 	 		  flag_btn4 = 1;
 	 		  /* SEND CAN NEUTRAL GEAR MSG HERE */
+#if DEBUG == 1
 		  	  HAL_GPIO_TogglePin(LED3_GPIO_Port, LED3_Pin);
 		  	  HAL_GPIO_TogglePin(LED4_GPIO_Port, LED4_Pin);
 		  	  HAL_Delay(100);
 		  	  HAL_GPIO_TogglePin(LED3_GPIO_Port, LED3_Pin);
 		  	  HAL_GPIO_TogglePin(LED4_GPIO_Port, LED4_Pin);
+#endif
 	  }
 	  if (!HAL_GPIO_ReadPin(BTN_3_GPIO_Port, BTN_3_Pin) && !HAL_GPIO_ReadPin(BTN_4_GPIO_Port, BTN_4_Pin) && flag_btn3 == 1 && flag_btn4 == 1) {
 	  	 		  flag_btn3 = 0;
@@ -387,12 +363,13 @@ void button_handler()
 	  	 	}
 	  /* GEAR UP BUTTON HANDLER */
 	  if (HAL_GPIO_ReadPin(BTN_3_GPIO_Port, BTN_3_Pin) && !HAL_GPIO_ReadPin(BTN_4_GPIO_Port, BTN_4_Pin) && (HAL_GetTick() - time_ms > 150) && flag_btn3 == 0) {
-		  HAL_GPIO_TogglePin(LED3_GPIO_Port, LED3_Pin);
 		  flag_btn3 = 1;
 		  	  /* SEND CAN GEAR UP MSG HERE */
-
+#if DEBUG == 1
+		  HAL_GPIO_TogglePin(LED3_GPIO_Port, LED3_Pin);
 		  HAL_Delay(100);
 		  HAL_GPIO_TogglePin(LED3_GPIO_Port, LED3_Pin);
+#endif
 	  	}
 	  if (!HAL_GPIO_ReadPin(BTN_3_GPIO_Port, BTN_3_Pin) && flag_btn3 == 1) {
 	 		  flag_btn3 = 0;
@@ -400,15 +377,49 @@ void button_handler()
 	 	}
 	  /* GEAR DOWN BUTTON HANDLER */
 	  if (HAL_GPIO_ReadPin(BTN_4_GPIO_Port, BTN_4_Pin) && !HAL_GPIO_ReadPin(BTN_3_GPIO_Port, BTN_3_Pin)  && (HAL_GetTick() - time_ms > 150) && flag_btn4 == 0) {
-		      HAL_GPIO_TogglePin(LED4_GPIO_Port, LED4_Pin);
 		  	  flag_btn4 = 1;
 		  	  /* SEND CAN GEAR DOWN MSG HERE */
-
+#if DEBUG == 1
+		      HAL_GPIO_TogglePin(LED4_GPIO_Port, LED4_Pin);
 		  	  HAL_Delay(100);
 		  	  HAL_GPIO_TogglePin(LED4_GPIO_Port, LED4_Pin);
+#endif
 	  	}
 	  if (!HAL_GPIO_ReadPin(BTN_4_GPIO_Port, BTN_4_Pin) && flag_btn4 == 1) {
 	 		  flag_btn4 = 0;
+	 		  HAL_Delay(100);
+	 	}
+	  /* ENGINE STARTUP BUTTON HANDLER */
+	  if (HAL_GPIO_ReadPin(BTN_1_GPIO_Port, BTN_1_Pin) && (HAL_GetTick() - time_ms > 150) && flag_btn1 == 0) {
+		  flag_btn1 = 1;
+		  while(HAL_GPIO_ReadPin(BTN_1_GPIO_Port, BTN_1_Pin)){
+		  		  /* SEND CAN MSG ENGINE STARTUP HERE */
+			  msg_type = 0;
+			  while(can_msg_handler(msg_type));
+		  		  /* ENGINE STARTUP SWITCH IS NOT LATCHING ! */
+		  }
+#if DEBUG == 1
+		  HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+		  HAL_Delay(100);
+		  HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+#endif
+	  	}
+	  if (!HAL_GPIO_ReadPin(BTN_1_GPIO_Port, BTN_1_Pin) && flag_btn1 == 1) {
+	 		  flag_btn1 = 0;
+	 		  HAL_Delay(100);
+	 	}
+	  /* ENGINE STOP BUTTON HANDLER */
+	  if (HAL_GPIO_ReadPin(BTN_2_GPIO_Port, BTN_2_Pin) && (HAL_GetTick() - time_ms > 150) && flag_btn2 == 0) {
+		  flag_btn2 = 1;
+		  	  /* SEND CAN STOP ENGINE MSG HERE */
+#if DEBUG == 1
+		  	  HAL_GPIO_TogglePin(LED2_GPIO_Port, LED2_Pin);
+		  	  HAL_Delay(100);
+		  	  HAL_GPIO_TogglePin(LED2_GPIO_Port, LED2_Pin);
+#endif
+	  	}
+	  if (!HAL_GPIO_ReadPin(BTN_2_GPIO_Port, BTN_2_Pin) && flag_btn2 == 1) {
+		  flag_btn2 = 0;
 	 		  HAL_Delay(100);
 	 	}
 	  /* NEXT SCREEN BUTTON HANDLER */
