@@ -33,7 +33,7 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define PILOT_FINGER_TAP_SPEED 150
-#define DEBUG 0
+// #define DEBUG 0
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -49,12 +49,23 @@ UART_HandleTypeDef huart1;
 /* USER CODE BEGIN PV */
 CAN_TxHeaderTypeDef TxHeader;
 CAN_RxHeaderTypeDef RxHeader;
-uint8_t TxData[8] = {0,0,0,0,0,0,0,0};
-uint8_t RxData[8] = {0,0,0,0,0,0,0,0};
+/* Some buffers for CAN MSGs */
+/* Value update frequency 20 Hz */
+uint8_t TxData[8] = {0,0,0,0,0,0,0,0};      // Output buffer
+uint8_t RxData_x600[8] = {0,0,0,0,0,0,0,0}; // (ID 0x600)
+//0x600 {0_RPM, 1_RPM, 2_TPS, 3_IAT, 4_MAP, 5_MAP, 6_INJPW, 7_INJPW}
+uint8_t RxData_x601[8] = {0,0,0,0,0,0,0,0}; // (ID 0x601)
+//0x601 {0_AIN1, 1_AIN1, 2_AIN2, 3_AIN2, 4_AIN3, 5_AIN3,6_AIN4, 7_AIN4}
+uint8_t RxData_x602[8] = {0,0,0,0,0,0,0,0}; // (ID 0x602)
+//0x602 {0_RPM, 1_RPM, 2_TPS, 3_IAT, 4_MAP, 5_MAP, 6_INJPW, 7_INJPW}
+uint8_t RxData_x604[8] = {0,0,0,0,0,0,0,0}; // (ID 0x604)
+//0x604 {0_GEAR, 1_ECUTEMP, 2_BATT, 3_BATT, 4_ERRFLAG, 5_ERRFLAG, 6_FLAGS1, 7_ETHANOL}
+/* Value conversion on Nextion side */
 uint32_t TxMailbox;
 uint8_t msg_type = 255;
 uint8_t flag_btn1, flag_btn2, flag_btn3, flag_btn4, flag_btn5, flag_btn6 = 0; // Some flags for buttons
-volatile uint32_t time_ms = 0;
+uint32_t time_ms = 0;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -62,36 +73,22 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_CAN_Init(void);
 static void MX_USART1_UART_Init(void);
+void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan);
+void HAL_CAN_ErrorCallback(CAN_HandleTypeDef *hcan);
+
 /* USER CODE BEGIN PFP */
 void button_handler(void);
 int can_msg_handler(uint8_t typemsg);
+void nextion_msg_handler(void);
+void startup(void);
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 {
-    if(HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &RxHeader, RxData) == HAL_OK)
-    {
-        if(RxHeader.StdId == 0x642)
-        {
-        	if(RxData[4] == 0x01)
-        	{
 
-        	}
-        	else if(RxData[4] == 0x02)
-        	{
-
-        	}else{
-
-        	}
-        }
-        else
-        {
-
-        	__NOP();
-        }
-    }
 }
 void HAL_CAN_ErrorCallback(CAN_HandleTypeDef *hcan)
 {
@@ -131,23 +128,7 @@ int main(void)
   MX_CAN_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
-  HAL_GPIO_WritePin(CAN_LED_GPIO_Port, CAN_LED_Pin, 0);
-  TxHeader.StdId = 0x642;
-  TxHeader.ExtId = 0;
-  TxHeader.RTR = CAN_RTR_DATA; // CAN_RTR_REMOTE
-  TxHeader.IDE = CAN_ID_STD;   // USE STANDART ID
-  TxHeader.DLC = 8;
-  TxHeader.TransmitGlobalTime = 0;
-  while(HAL_CAN_Start(&hcan) == HAL_ERROR);
-  /* SOME LED BLINK FOR SUCCESSFUL STARTUP*/
-  HAL_CAN_ActivateNotification(&hcan, CAN_IT_RX_FIFO0_MSG_PENDING);
-  HAL_GPIO_WritePin(GPIOB, LED1_Pin|LED2_Pin|LED3_Pin|LED4_Pin, 1);
-  HAL_Delay(200);
-  HAL_GPIO_WritePin(CAN_LED_GPIO_Port, CAN_LED_Pin, 1);
-  HAL_GPIO_WritePin(GPIOB, LED1_Pin|LED2_Pin|LED3_Pin|LED4_Pin, 0);
-  HAL_Delay(200);
-  HAL_GPIO_WritePin(CAN_LED_GPIO_Port, CAN_LED_Pin, 0);
-  time_ms = HAL_GetTick();
+  startup();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -235,8 +216,8 @@ static void MX_CAN_Init(void)
   sFilterConfig.FilterBank = 0;
   sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
   sFilterConfig.FilterScale = CAN_FILTERSCALE_16BIT;
-  sFilterConfig.FilterIdHigh = 0x600<<5;
-  sFilterConfig.FilterIdLow = 0x600<<5;
+  sFilterConfig.FilterIdHigh = 0x600;
+  sFilterConfig.FilterIdLow = 0x600;
   sFilterConfig.FilterMaskIdHigh = 0x7F8<<5;
   sFilterConfig.FilterMaskIdLow = 0x7F8<<5;
   sFilterConfig.FilterFIFOAssignment = CAN_RX_FIFO0;
@@ -499,6 +480,25 @@ int can_msg_handler(uint8_t typemsg){
 		msg_type = 255; // SET NONE TYPE MSG
 		return 0; // return OK value to prevent endless loop
 	}
+}
+void startup(){
+	 HAL_GPIO_WritePin(CAN_LED_GPIO_Port, CAN_LED_Pin, 0);
+	  TxHeader.StdId = 0x642;
+	  TxHeader.ExtId = 0;
+	  TxHeader.RTR = CAN_RTR_DATA; // CAN_RTR_REMOTE
+	  TxHeader.IDE = CAN_ID_STD;   // USE STANDART ID
+	  TxHeader.DLC = 8;
+	  TxHeader.TransmitGlobalTime = 0;
+	  while(HAL_CAN_Start(&hcan) == HAL_ERROR);
+	  /* SOME LED BLINK FOR SUCCESSFUL STARTUP*/
+	  HAL_CAN_ActivateNotification(&hcan, CAN_IT_RX_FIFO0_MSG_PENDING);
+	  HAL_GPIO_WritePin(GPIOB, LED1_Pin|LED2_Pin|LED3_Pin|LED4_Pin, 1);
+	  HAL_Delay(200);
+	  HAL_GPIO_WritePin(CAN_LED_GPIO_Port, CAN_LED_Pin, 1);
+	  HAL_GPIO_WritePin(GPIOB, LED1_Pin|LED2_Pin|LED3_Pin|LED4_Pin, 0);
+	  HAL_Delay(200);
+	  HAL_GPIO_WritePin(CAN_LED_GPIO_Port, CAN_LED_Pin, 0);
+	  time_ms = HAL_GetTick();
 }
 /* USER CODE END 4 */
 
