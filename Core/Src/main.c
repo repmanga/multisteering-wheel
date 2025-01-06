@@ -33,7 +33,6 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define PILOT_FINGER_TAP_SPEED 150
-// #define DEBUG 0
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -49,6 +48,7 @@ UART_HandleTypeDef huart1;
 /* USER CODE BEGIN PV */
 CAN_TxHeaderTypeDef TxHeader;
 CAN_RxHeaderTypeDef RxHeader;
+
 /* Some buffers for CAN MSGs */
 /* Value update frequency 20 Hz */
 uint8_t TxData[8] = {0,0,0,0,0,0,0,0};      // Output buffer
@@ -60,6 +60,7 @@ uint8_t RxData_x602[8] = {0,0,0,0,0,0,0,0}; // (ID 0x602)
 //0x602 {0_VSPD, 1_VSPD, 2_BARO, 3_OILT, 4_OILP, 5_FUELP, 6_CLT, 7_CLT}
 uint8_t RxData_x604[8] = {0,0,0,0,0,0,0,0}; // (ID 0x604)
 //0x604 {0_GEAR, 1_ECUTEMP, 2_BATT, 3_BATT, 4_ERRFLAG, 5_ERRFLAG, 6_FLAGS1, 7_ETHANOL}
+//TODO: set correct integer types for temp and so on (ref. to ECU manual for proper info)
 /* Value conversion on Nextion side */
 uint32_t TxMailbox;
 uint8_t msg_type = 255;
@@ -67,7 +68,6 @@ uint16_t RPM, MAP, AIN0, AIN1, AIN2, AIN3, AIN4, VSPD, CLT, BATT, ERRFLAG = 0;
 uint8_t TPS, IAT, BARO, OILT, OILP, FUELP, GEAR, ECUTEMP = 0;
 uint8_t flag_btn1, flag_btn2, flag_btn3, flag_btn4, flag_btn5, flag_btn6 = 0; // Some flags for buttons
 uint32_t time_ms = 0;
-
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -90,7 +90,7 @@ void startup(void);
 /* USER CODE BEGIN 0 */
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 {
-
+	//TODO: set correct callback (according to defined addresses)
 }
 void HAL_CAN_ErrorCallback(CAN_HandleTypeDef *hcan)
 {
@@ -138,6 +138,7 @@ int main(void)
   while (1)
   {
 	button_handler();
+	//TODO: fix loop sequence
     /* USER CODE END WHILE */
     /* USER CODE BEGIN 3 */
   }
@@ -483,6 +484,7 @@ int can_msg_handler(uint8_t typemsg){
 		return 0; // return OK value to prevent endless loop
 	}
 }
+//TODO: define nextion_msg_handler() function
 void startup(){
 	 HAL_GPIO_WritePin(CAN_LED_GPIO_Port, CAN_LED_Pin, 0);
 	  TxHeader.StdId = 0x642;
