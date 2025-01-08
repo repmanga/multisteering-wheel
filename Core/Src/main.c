@@ -49,26 +49,46 @@ UART_HandleTypeDef huart1;
 /* USER CODE BEGIN PV */
 CAN_TxHeaderTypeDef TxHeader;
 CAN_RxHeaderTypeDef RxHeader;
+uint8_t TxData[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };      // Output buffer
+uint32_t TxMailbox;
+uint8_t msg_type = 255;
+uint32_t time_ms = 0;
 
 /* Some buffers for CAN MSGs */
 /* Value update frequency 20 Hz */
-uint8_t TxData[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };      // Output buffer
-uint8_t RxData_x600[8] = { 0, 0, 0, 0, 0, 0, 0, 0 }; // (ID 0x600)
-//0x600 {0_RPM, 1_RPM, 2_TPS, 3_IAT, 4_MAP, 5_MAP, 6_INJPW, 7_INJPW}
-uint8_t RxData_x601[8] = { 0, 0, 0, 0, 0, 0, 0, 0 }; // (ID 0x601)
-//0x601 {0_AIN1, 1_AIN1, 2_AIN2, 3_AIN2, 4_AIN3, 5_AIN3,6_AIN4, 7_AIN4}
-uint8_t RxData_x602[8] = { 0, 0, 0, 0, 0, 0, 0, 0 }; // (ID 0x602)
-//0x602 {0_VSPD, 1_VSPD, 2_BARO, 3_OILT, 4_OILP, 5_FUELP, 6_CLT, 7_CLT}
-uint8_t RxData_x604[8] = { 0, 0, 0, 0, 0, 0, 0, 0 }; // (ID 0x604)
+struct ID_MSG_Array {
+	uint8_t x600[8]; // (ID 0x600)
+	//0x600 {0_RPM, 1_RPM, 2_TPS, 3_IAT, 4_MAP, 5_MAP, 6_INJPW, 7_INJPW}
+	uint8_t x601[8]; // (ID 0x601)
+	//0x601 {0_AIN1, 1_AIN1, 2_AIN2, 3_AIN2, 4_AIN3, 5_AIN3,6_AIN4, 7_AIN4}
+	uint8_t x602[8]; // (ID 0x602)
+	//0x602 {0_VSPD, 1_VSPD, 2_BARO, 3_OILT, 4_OILP, 5_FUELP, 6_CLT, 7_CLT}
+	uint8_t x604[8]; // (ID 0x604)
 //0x604 {0_GEAR, 1_ECUTEMP, 2_BATT, 3_BATT, 4_ERRFLAG, 5_ERRFLAG, 6_FLAGS1, 7_ETHANOL}
+};
 /* Value conversion on Nextion side */
-uint32_t TxMailbox;
-uint8_t msg_type = 255;
-uint16_t RPM, MAP, AIN0, AIN1, AIN2, AIN3, AIN4, VSPD, BATT, ERRFLAG = 0;
-int16_t CLT = 0;
-uint8_t TPS, BARO, OILT, OILP, FUELP, GEAR = 0;
-int8_t IAT, ECUTEMP = 0;
-uint32_t time_ms = 0;
+struct Nextion_values {
+	uint16_t RPM;
+	uint16_t MAP;
+	uint16_t AIN0;
+	uint16_t AIN1;
+	uint16_t AIN2;
+	uint16_t AIN3;
+	uint16_t AIN4;
+	uint16_t VSPD;
+	uint16_t BATT;
+	uint16_t ERRFLAG;
+	int16_t CLT;
+	uint8_t TPS;
+	uint8_t BARO;
+	uint8_t OILT;
+	uint8_t OILP;
+	uint8_t FUELP;
+	uint8_t GEAR;
+	int8_t IAT;
+	int8_t ECUTEMP;
+};
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -104,7 +124,10 @@ void HAL_CAN_ErrorCallback(CAN_HandleTypeDef *hcan) {
 int main(void) {
 
 	/* USER CODE BEGIN 1 */
-
+	struct ID_MSG_Array RxData = { { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0,
+			0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 } };
+	struct Nextion_values Nextion = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0 };
 	/* USER CODE END 1 */
 
 	/* MCU Configuration--------------------------------------------------------*/
@@ -394,15 +417,15 @@ void button_handler() {
 		while (HAL_GPIO_ReadPin(BTN_1_GPIO_Port, BTN_1_Pin)) {
 			/* SEND CAN MSG ENGINE STARTUP HERE */
 			msg_type = 0;
-			while (can_msg_handler(msg_type))
-				;
+			//while (can_msg_handler(msg_type))
+			//	;
 			/* ENGINE STARTUP SWITCH IS NOT LATCHING ! */
-		}
 #if DEBUG == 1
-		HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
-		HAL_Delay(100);
-		HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+			HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+			HAL_Delay(100);
+			HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
 #endif
+		}
 	}
 	if (!HAL_GPIO_ReadPin(BTN_1_GPIO_Port, BTN_1_Pin) && flag_btn1 == 1) {
 		flag_btn1 = 0;
