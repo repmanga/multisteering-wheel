@@ -22,7 +22,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "string.h"
-
+#include "stdbool.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -54,9 +54,14 @@ uint32_t TxMailbox;
 uint8_t msg_type = 255;
 uint32_t time_ms = 0;
 
+enum can_msg_type {
+	engn_start, engn_stop, gear_up, gear_down, gear_neutral, msg_none
+} can_msg_type;
+
 /* Some buffers for CAN MSGs */
 /* Value update frequency 20 Hz */
 struct ID_MSG_Array {
+	uint8_t buff[8]; // input buffer
 	uint8_t x600[8]; // (ID 0x600)
 	//0x600 {0_RPM, 1_RPM, 2_TPS, 3_IAT, 4_MAP, 5_MAP, 6_INJPW, 7_INJPW}
 	uint8_t x601[8]; // (ID 0x601)
@@ -65,7 +70,7 @@ struct ID_MSG_Array {
 	//0x602 {0_VSPD, 1_VSPD, 2_BARO, 3_OILT, 4_OILP, 5_FUELP, 6_CLT, 7_CLT}
 	uint8_t x604[8]; // (ID 0x604)
 //0x604 {0_GEAR, 1_ECUTEMP, 2_BATT, 3_BATT, 4_ERRFLAG, 5_ERRFLAG, 6_FLAGS1, 7_ETHANOL}
-};
+} RxData;
 /* Value conversion on Nextion side */
 struct Nextion_values {
 	uint16_t RPM;
@@ -87,7 +92,7 @@ struct Nextion_values {
 	uint8_t GEAR;
 	int8_t IAT;
 	int8_t ECUTEMP;
-};
+} Nextion;
 
 /* USER CODE END PV */
 
@@ -110,7 +115,29 @@ void startup(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan) {
-	//TODO: set correct callback (according to defined addresses)
+	if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &RxHeader, RxData.buff)
+			== HAL_OK) {
+		if (RxHeader.StdId == 0x600) {
+			for (uint8_t i = 0; i < 7; i++) {
+				RxData.x600[i] = RxData.buff[i];
+			}
+		}
+		if (RxHeader.StdId == 0x601){
+			for (uint8_t i = 0; i < 7; i++) {
+				RxData.x601[i] = RxData.buff[i];
+			}
+		}
+		if (RxHeader.StdId == 0x602){
+			for (uint8_t i = 0; i < 7; i++) {
+				RxData.x602[i] = RxData.buff[i];
+			}
+		}
+		if (RxHeader.StdId == 0x604){
+			for (uint8_t i = 0; i < 7; i++) {
+				RxData.x604[i] = RxData.buff[i];
+			}
+		}
+	}
 }
 void HAL_CAN_ErrorCallback(CAN_HandleTypeDef *hcan) {
 	Error_Handler();
@@ -124,10 +151,7 @@ void HAL_CAN_ErrorCallback(CAN_HandleTypeDef *hcan) {
 int main(void) {
 
 	/* USER CODE BEGIN 1 */
-	struct ID_MSG_Array RxData = { { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0,
-			0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 } };
-	struct Nextion_values Nextion = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0 };
+
 	/* USER CODE END 1 */
 
 	/* MCU Configuration--------------------------------------------------------*/
@@ -352,16 +376,15 @@ static void MX_GPIO_Init(void) {
 
 /* USER CODE BEGIN 4 */
 void button_handler() {
-	static uint8_t flag_btn1, flag_btn2, flag_btn3, flag_btn4, flag_btn5,
-			flag_btn6 = 0; // Some flags for buttons
+	static bool flag_btn1, flag_btn2, flag_btn3, flag_btn4, flag_btn5,
+			flag_btn6 = false; // Some flags for buttons
 	HAL_Delay(PILOT_FINGER_TAP_SPEED);
 	/* NEUTRAL GEAR BUTTON COMBINATION HANDLER */
 	if (HAL_GPIO_ReadPin(BTN_3_GPIO_Port, BTN_3_Pin)
 			&& HAL_GPIO_ReadPin(BTN_4_GPIO_Port, BTN_4_Pin)
-			&& (HAL_GetTick() - time_ms > 150) && flag_btn3 == 0
-			&& flag_btn4 == 0) {
-		flag_btn3 = 1;
-		flag_btn4 = 1;
+			&& (HAL_GetTick() - time_ms > 150) && !flag_btn3 && !flag_btn4) {
+		flag_btn3 = !flag_btn3;
+		flag_btn4 = !flag_btn4;
 		/* SEND CAN NEUTRAL GEAR MSG HERE */
 #if DEBUG == 1
 		HAL_GPIO_TogglePin(LED3_GPIO_Port, LED3_Pin);
@@ -372,17 +395,17 @@ void button_handler() {
 #endif
 	}
 	if (!HAL_GPIO_ReadPin(BTN_3_GPIO_Port, BTN_3_Pin)
-			&& !HAL_GPIO_ReadPin(BTN_4_GPIO_Port, BTN_4_Pin) && flag_btn3 == 1
-			&& flag_btn4 == 1) {
-		flag_btn3 = 0;
-		flag_btn4 = 0;
+			&& !HAL_GPIO_ReadPin(BTN_4_GPIO_Port, BTN_4_Pin) && flag_btn3
+			&& flag_btn4) {
+		flag_btn3 = !flag_btn3;
+		flag_btn4 = !flag_btn4;
 		HAL_Delay(100);
 	}
 	/* GEAR UP BUTTON HANDLER */
 	if (HAL_GPIO_ReadPin(BTN_3_GPIO_Port, BTN_3_Pin)
 			&& !HAL_GPIO_ReadPin(BTN_4_GPIO_Port, BTN_4_Pin)
-			&& (HAL_GetTick() - time_ms > 150) && flag_btn3 == 0) {
-		flag_btn3 = 1;
+			&& (HAL_GetTick() - time_ms > 150) && !flag_btn3) {
+		flag_btn3 = !flag_btn3;
 		/* SEND CAN GEAR UP MSG HERE */
 #if DEBUG == 1
 		HAL_GPIO_TogglePin(LED3_GPIO_Port, LED3_Pin);
@@ -390,15 +413,15 @@ void button_handler() {
 		HAL_GPIO_TogglePin(LED3_GPIO_Port, LED3_Pin);
 #endif
 	}
-	if (!HAL_GPIO_ReadPin(BTN_3_GPIO_Port, BTN_3_Pin) && flag_btn3 == 1) {
+	if (!HAL_GPIO_ReadPin(BTN_3_GPIO_Port, BTN_3_Pin) && flag_btn3) {
 		flag_btn3 = 0;
 		HAL_Delay(100);
 	}
 	/* GEAR DOWN BUTTON HANDLER */
 	if (HAL_GPIO_ReadPin(BTN_4_GPIO_Port, BTN_4_Pin)
 			&& !HAL_GPIO_ReadPin(BTN_3_GPIO_Port, BTN_3_Pin)
-			&& (HAL_GetTick() - time_ms > 150) && flag_btn4 == 0) {
-		flag_btn4 = 1;
+			&& (HAL_GetTick() - time_ms > 150) && !flag_btn4) {
+		flag_btn4 = !flag_btn4;
 		/* SEND CAN GEAR DOWN MSG HERE */
 #if DEBUG == 1
 		HAL_GPIO_TogglePin(LED4_GPIO_Port, LED4_Pin);
@@ -406,17 +429,17 @@ void button_handler() {
 		HAL_GPIO_TogglePin(LED4_GPIO_Port, LED4_Pin);
 #endif
 	}
-	if (!HAL_GPIO_ReadPin(BTN_4_GPIO_Port, BTN_4_Pin) && flag_btn4 == 1) {
-		flag_btn4 = 0;
+	if (!HAL_GPIO_ReadPin(BTN_4_GPIO_Port, BTN_4_Pin) && flag_btn4) {
+		flag_btn4 = !flag_btn4;
 		HAL_Delay(100);
 	}
 	/* ENGINE STARTUP BUTTON HANDLER */
 	if (HAL_GPIO_ReadPin(BTN_1_GPIO_Port, BTN_1_Pin)
-			&& (HAL_GetTick() - time_ms > 150) && flag_btn1 == 0) {
-		flag_btn1 = 1;
+			&& (HAL_GetTick() - time_ms > 150) && !flag_btn1) {
+		flag_btn1 = !flag_btn1;
 		while (HAL_GPIO_ReadPin(BTN_1_GPIO_Port, BTN_1_Pin)) {
 			/* SEND CAN MSG ENGINE STARTUP HERE */
-			msg_type = 0;
+
 			//while (can_msg_handler(msg_type))
 			//	;
 			/* ENGINE STARTUP SWITCH IS NOT LATCHING ! */
@@ -427,14 +450,14 @@ void button_handler() {
 #endif
 		}
 	}
-	if (!HAL_GPIO_ReadPin(BTN_1_GPIO_Port, BTN_1_Pin) && flag_btn1 == 1) {
-		flag_btn1 = 0;
+	if (!HAL_GPIO_ReadPin(BTN_1_GPIO_Port, BTN_1_Pin) && flag_btn1) {
+		flag_btn1 = !flag_btn1;
 		HAL_Delay(100);
 	}
 	/* ENGINE STOP BUTTON HANDLER */
 	if (HAL_GPIO_ReadPin(BTN_2_GPIO_Port, BTN_2_Pin)
-			&& (HAL_GetTick() - time_ms > 150) && flag_btn2 == 0) {
-		flag_btn2 = 1;
+			&& (HAL_GetTick() - time_ms > 150) && !flag_btn2) {
+		flag_btn2 = !flag_btn2;
 		/* SEND CAN STOP ENGINE MSG HERE */
 #if DEBUG == 1
 		HAL_GPIO_TogglePin(LED2_GPIO_Port, LED2_Pin);
@@ -442,39 +465,39 @@ void button_handler() {
 		HAL_GPIO_TogglePin(LED2_GPIO_Port, LED2_Pin);
 #endif
 	}
-	if (!HAL_GPIO_ReadPin(BTN_2_GPIO_Port, BTN_2_Pin) && flag_btn2 == 1) {
-		flag_btn2 = 0;
+	if (!HAL_GPIO_ReadPin(BTN_2_GPIO_Port, BTN_2_Pin) && flag_btn2) {
+		flag_btn2 = !flag_btn2;
 		HAL_Delay(100);
 	}
 	/* NEXT SCREEN BUTTON HANDLER */
 	if (HAL_GPIO_ReadPin(BTN_5_GPIO_Port, BTN_5_Pin)
-			&& (HAL_GetTick() - time_ms > 150) && flag_btn5 == 0) {
-		flag_btn5 = 1;
+			&& (HAL_GetTick() - time_ms > 150) && !flag_btn5) {
+		flag_btn5 = !flag_btn5;
 		/* SEND USART NEXT SCREEN MSG HERE */
 
 		HAL_Delay(100);
 	}
-	if (!HAL_GPIO_ReadPin(BTN_5_GPIO_Port, BTN_5_Pin) && flag_btn5 == 1) {
-		flag_btn5 = 0;
+	if (!HAL_GPIO_ReadPin(BTN_5_GPIO_Port, BTN_5_Pin) && flag_btn5) {
+		flag_btn5 = !flag_btn5;
 		//HAL_Delay(100);
 	}
 	/* PREVIOUS SCREEN BUTTON HANDLER */
 	if (HAL_GPIO_ReadPin(BTN_6_GPIO_Port, BTN_6_Pin)
-			&& (HAL_GetTick() - time_ms > 150) && flag_btn6 == 0) {
-		flag_btn6 = 1;
+			&& (HAL_GetTick() - time_ms > 150) && !flag_btn6) {
+		flag_btn6 = !flag_btn6;
 		/* SEND USART PREVIOUS SCREEN MSG HERE */
 
 		HAL_Delay(100);
 	}
-	if (!HAL_GPIO_ReadPin(BTN_6_GPIO_Port, BTN_6_Pin) && flag_btn6 == 1) {
-		flag_btn6 = 0;
+	if (!HAL_GPIO_ReadPin(BTN_6_GPIO_Port, BTN_6_Pin) && flag_btn6) {
+		flag_btn6 = !flag_btn6;
 		//HAL_Delay(100);
 	}
 
 }
 int can_msg_handler(uint8_t typemsg) {
 	switch (typemsg) {
-	case 0:
+	case engn_start:
 		/* MSG START ENGINE */
 		TxHeader.StdId = 0x642;
 		TxData[4] = 0b00000001; //using binary system to make bit set more clear
@@ -483,7 +506,7 @@ int can_msg_handler(uint8_t typemsg) {
 		HAL_CAN_AddTxMessage(&hcan, &TxHeader, TxData, TxMailbox);
 		TxData[4] = 0x00;
 		break;
-	case 1:
+	case engn_stop:
 		/* MSG STOP ENGINE */
 		TxHeader.StdId = 0x642;
 		TxData[4] = 0b00000010; //CAN SW#1
@@ -492,7 +515,7 @@ int can_msg_handler(uint8_t typemsg) {
 		HAL_CAN_AddTxMessage(&hcan, &TxHeader, TxData, TxMailbox);
 		TxData[4] = 0x00;
 		break;
-	case 2:
+	case gear_up:
 		/* MSG GEAR UP */
 		TxHeader.StdId = 0x642;
 		TxData[4] = 0b00000100; //CAN SW#2
@@ -501,7 +524,7 @@ int can_msg_handler(uint8_t typemsg) {
 		HAL_CAN_AddTxMessage(&hcan, &TxHeader, TxData, TxMailbox);
 		TxData[4] = 0x00;
 		break;
-	case 3:
+	case gear_down:
 		/* MSG GEAR DOWN */
 		TxHeader.StdId = 0x642;
 		TxData[4] = 0b00001000; //CAN SW #3
@@ -510,7 +533,7 @@ int can_msg_handler(uint8_t typemsg) {
 		HAL_CAN_AddTxMessage(&hcan, &TxHeader, TxData, TxMailbox);
 		TxData[4] = 0x00;
 		break;
-	case 4:
+	case gear_neutral:
 		/* MSG GEAR NEUTRAL */
 		TxHeader.StdId = 0x642;
 		TxData[4] = 0b00010000; //CAN SW#4
@@ -522,7 +545,7 @@ int can_msg_handler(uint8_t typemsg) {
 	default:
 		/* MSG NONE */
 		break;
-		msg_type = 255; // SET NONE TYPE MSG
+		msg_type = msg_none; // SET NONE TYPE MSG
 		return 0; // return OK value to prevent endless loop
 	}
 }
