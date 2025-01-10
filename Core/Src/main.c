@@ -50,7 +50,7 @@ UART_HandleTypeDef huart1;
 CAN_TxHeaderTypeDef TxHeader;
 CAN_RxHeaderTypeDef RxHeader;
 uint8_t TxData[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };      // Output buffer
-uint32_t TxMailbox;
+uint32_t TxMailbox = 0;
 uint8_t msg_type = 255;
 uint32_t time_ms = 0;
 
@@ -122,20 +122,23 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan) {
 				RxData.x600[i] = RxData.buff[i];
 			}
 		}
-		if (RxHeader.StdId == 0x601){
+		if (RxHeader.StdId == 0x601) {
 			for (uint8_t i = 0; i < 7; i++) {
 				RxData.x601[i] = RxData.buff[i];
 			}
 		}
-		if (RxHeader.StdId == 0x602){
+		if (RxHeader.StdId == 0x602) {
 			for (uint8_t i = 0; i < 7; i++) {
 				RxData.x602[i] = RxData.buff[i];
 			}
 		}
-		if (RxHeader.StdId == 0x604){
+		if (RxHeader.StdId == 0x604) {
 			for (uint8_t i = 0; i < 7; i++) {
 				RxData.x604[i] = RxData.buff[i];
 			}
+		}
+		if (RxHeader.StdId == 0x642) {
+			HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
 		}
 	}
 }
@@ -182,7 +185,6 @@ int main(void) {
 	/* USER CODE BEGIN WHILE */
 	while (1) {
 		button_handler();
-		//TODO: fix loop sequence
 		/* USER CODE END WHILE */
 		/* USER CODE BEGIN 3 */
 	}
@@ -240,28 +242,28 @@ static void MX_CAN_Init(void) {
 
 	/* USER CODE END CAN_Init 1 */
 	hcan.Instance = CAN1;
-	hcan.Init.Prescaler = 16;
-	hcan.Init.Mode = CAN_MODE_NORMAL;
+	hcan.Init.Prescaler = 2;
+	hcan.Init.Mode = CAN_MODE_LOOPBACK;
 	hcan.Init.SyncJumpWidth = CAN_SJW_1TQ;
-	hcan.Init.TimeSeg1 = CAN_BS1_1TQ;
-	hcan.Init.TimeSeg2 = CAN_BS2_1TQ;
+	hcan.Init.TimeSeg1 = CAN_BS1_13TQ;
+	hcan.Init.TimeSeg2 = CAN_BS2_2TQ;
 	hcan.Init.TimeTriggeredMode = DISABLE;
 	hcan.Init.AutoBusOff = DISABLE;
 	hcan.Init.AutoWakeUp = DISABLE;
 	hcan.Init.AutoRetransmission = DISABLE;
 	hcan.Init.ReceiveFifoLocked = DISABLE;
-	hcan.Init.TransmitFifoPriority = DISABLE;
+	hcan.Init.TransmitFifoPriority = ENABLE;
 	if (HAL_CAN_Init(&hcan) != HAL_OK) {
 		Error_Handler();
 	}
 	/* USER CODE BEGIN CAN_Init 2 */
 	sFilterConfig.FilterBank = 0;
 	sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
-	sFilterConfig.FilterScale = CAN_FILTERSCALE_16BIT;
-	sFilterConfig.FilterIdHigh = 0x600;
-	sFilterConfig.FilterIdLow = 0x600;
-	sFilterConfig.FilterMaskIdHigh = 0x7F8 << 5;
-	sFilterConfig.FilterMaskIdLow = 0x7F8 << 5;
+	sFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;
+	sFilterConfig.FilterIdHigh = 0x0000;
+	sFilterConfig.FilterIdLow = 0x0000;
+	sFilterConfig.FilterMaskIdHigh = 0x0000;
+	sFilterConfig.FilterMaskIdLow = 0x0000;
 	sFilterConfig.FilterFIFOAssignment = CAN_RX_FIFO0;
 	sFilterConfig.FilterActivation = ENABLE;
 	//sFilterConfig.SlaveStartFilterBank = 14;
@@ -385,6 +387,9 @@ void button_handler() {
 			&& (HAL_GetTick() - time_ms > 150) && !flag_btn3 && !flag_btn4) {
 		flag_btn3 = !flag_btn3;
 		flag_btn4 = !flag_btn4;
+		msg_type = gear_neutral;
+		can_msg_handler(msg_type);
+
 		/* SEND CAN NEUTRAL GEAR MSG HERE */
 #if DEBUG == 1
 		HAL_GPIO_TogglePin(LED3_GPIO_Port, LED3_Pin);
@@ -407,6 +412,8 @@ void button_handler() {
 			&& (HAL_GetTick() - time_ms > 150) && !flag_btn3) {
 		flag_btn3 = !flag_btn3;
 		/* SEND CAN GEAR UP MSG HERE */
+		msg_type = gear_up;
+		can_msg_handler(msg_type);
 #if DEBUG == 1
 		HAL_GPIO_TogglePin(LED3_GPIO_Port, LED3_Pin);
 		HAL_Delay(100);
@@ -423,6 +430,8 @@ void button_handler() {
 			&& (HAL_GetTick() - time_ms > 150) && !flag_btn4) {
 		flag_btn4 = !flag_btn4;
 		/* SEND CAN GEAR DOWN MSG HERE */
+		msg_type = gear_down;
+		can_msg_handler(msg_type);
 #if DEBUG == 1
 		HAL_GPIO_TogglePin(LED4_GPIO_Port, LED4_Pin);
 		HAL_Delay(100);
@@ -439,9 +448,9 @@ void button_handler() {
 		flag_btn1 = !flag_btn1;
 		while (HAL_GPIO_ReadPin(BTN_1_GPIO_Port, BTN_1_Pin)) {
 			/* SEND CAN MSG ENGINE STARTUP HERE */
-
-			//while (can_msg_handler(msg_type))
-			//	;
+			msg_type = engn_start;
+			can_msg_handler(msg_type);
+			HAL_Delay(1);
 			/* ENGINE STARTUP SWITCH IS NOT LATCHING ! */
 #if DEBUG == 1
 			HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
@@ -459,6 +468,8 @@ void button_handler() {
 			&& (HAL_GetTick() - time_ms > 150) && !flag_btn2) {
 		flag_btn2 = !flag_btn2;
 		/* SEND CAN STOP ENGINE MSG HERE */
+		msg_type = engn_stop;
+		can_msg_handler(msg_type);
 #if DEBUG == 1
 		HAL_GPIO_TogglePin(LED2_GPIO_Port, LED2_Pin);
 		HAL_Delay(100);
@@ -499,20 +510,21 @@ int can_msg_handler(uint8_t typemsg) {
 	switch (typemsg) {
 	case engn_start:
 		/* MSG START ENGINE */
-		TxHeader.StdId = 0x642;
+		TxHeader.StdId = 0x643;
 		TxData[4] = 0b00000001; //using binary system to make bit set more clear
 		while (HAL_CAN_GetTxMailboxesFreeLevel(&hcan) == 0)
 			; //CAN SW#0
-		HAL_CAN_AddTxMessage(&hcan, &TxHeader, TxData, TxMailbox);
+		HAL_CAN_AddTxMessage(&hcan, &TxHeader, TxData, &TxMailbox);
 		TxData[4] = 0x00;
 		break;
 	case engn_stop:
 		/* MSG STOP ENGINE */
 		TxHeader.StdId = 0x642;
 		TxData[4] = 0b00000010; //CAN SW#1
+		TxData[4] = 0b11111111; //CAN SW#1
 		while (HAL_CAN_GetTxMailboxesFreeLevel(&hcan) == 0)
 			;
-		HAL_CAN_AddTxMessage(&hcan, &TxHeader, TxData, TxMailbox);
+		HAL_CAN_AddTxMessage(&hcan, &TxHeader, TxData, &TxMailbox);
 		TxData[4] = 0x00;
 		break;
 	case gear_up:
@@ -521,7 +533,7 @@ int can_msg_handler(uint8_t typemsg) {
 		TxData[4] = 0b00000100; //CAN SW#2
 		while (HAL_CAN_GetTxMailboxesFreeLevel(&hcan) == 0)
 			;
-		HAL_CAN_AddTxMessage(&hcan, &TxHeader, TxData, TxMailbox);
+		HAL_CAN_AddTxMessage(&hcan, &TxHeader, TxData, &TxMailbox);
 		TxData[4] = 0x00;
 		break;
 	case gear_down:
@@ -530,7 +542,7 @@ int can_msg_handler(uint8_t typemsg) {
 		TxData[4] = 0b00001000; //CAN SW #3
 		while (HAL_CAN_GetTxMailboxesFreeLevel(&hcan) == 0)
 			;
-		HAL_CAN_AddTxMessage(&hcan, &TxHeader, TxData, TxMailbox);
+		HAL_CAN_AddTxMessage(&hcan, &TxHeader, TxData, &TxMailbox);
 		TxData[4] = 0x00;
 		break;
 	case gear_neutral:
@@ -539,7 +551,7 @@ int can_msg_handler(uint8_t typemsg) {
 		TxData[4] = 0b00010000; //CAN SW#4
 		while (HAL_CAN_GetTxMailboxesFreeLevel(&hcan) == 0)
 			;
-		HAL_CAN_AddTxMessage(&hcan, &TxHeader, TxData, TxMailbox);
+		HAL_CAN_AddTxMessage(&hcan, &TxHeader, TxData, &TxMailbox);
 		TxData[4] = 0x00;
 		break;
 	default:
