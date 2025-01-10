@@ -244,7 +244,7 @@ static void MX_CAN_Init(void) {
 
 	/* USER CODE END CAN_Init 1 */
 	hcan.Instance = CAN1;
-	hcan.Init.Prescaler = 2;
+	hcan.Init.Prescaler = 4; // TJA1050 (CHN version cannot perform at 1MBit, only at 500kBit)
 	hcan.Init.Mode = CAN_MODE_LOOPBACK;
 	hcan.Init.SyncJumpWidth = CAN_SJW_1TQ;
 	hcan.Init.TimeSeg1 = CAN_BS1_13TQ;
@@ -523,7 +523,6 @@ int can_msg_handler(uint8_t typemsg) {
 		/* MSG STOP ENGINE */
 		TxHeader.StdId = 0x642;
 		TxData[4] = 0b00000010; //CAN SW#1
-		TxData[4] = 0b11111111; //CAN SW#1
 		while (HAL_CAN_GetTxMailboxesFreeLevel(&hcan) == 0)
 			;
 		HAL_CAN_AddTxMessage(&hcan, &TxHeader, TxData, &TxMailbox);

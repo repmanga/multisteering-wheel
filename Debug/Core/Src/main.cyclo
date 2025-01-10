@@ -7,5 +7,5 @@
 ../Core/Src/main.c:316:13:MX_GPIO_Init	1
 ../Core/Src/main.c:382:6:button_handler	43
 ../Core/Src/main.c:511:5:can_msg_handler	11
-../Core/Src/main.c:567:6:startup	2
-../Core/Src/main.c:595:6:Error_Handler	1
+../Core/Src/main.c:566:6:startup	2
+../Core/Src/main.c:594:6:Error_Handler	1
