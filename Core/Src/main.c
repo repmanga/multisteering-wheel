@@ -137,9 +137,11 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan) {
 				RxData.x604[i] = RxData.buff[i];
 			}
 		}
+#if DEBUG == 1
 		if (RxHeader.StdId == 0x642) {
 			HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
 		}
+#endif
 	}
 }
 void HAL_CAN_ErrorCallback(CAN_HandleTypeDef *hcan) {
@@ -557,9 +559,9 @@ int can_msg_handler(uint8_t typemsg) {
 	default:
 		/* MSG NONE */
 		break;
-		msg_type = msg_none; // SET NONE TYPE MSG
-		return 0; // return OK value to prevent endless loop
 	}
+	msg_type = msg_none; // SET NONE TYPE MSG
+	return 0; // return OK value to prevent endless loop
 }
 //TODO: define nextion_msg_handler() function
 void startup() {
