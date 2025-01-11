@@ -71,6 +71,7 @@ struct ID_MSG_Array {
 	uint8_t x604[8]; // (ID 0x604)
 //0x604 {0_GEAR, 1_ECUTEMP, 2_BATT, 3_BATT, 4_ERRFLAG, 5_ERRFLAG, 6_FLAGS1, 7_ETHANOL}
 } RxData;
+
 /* Value conversion on Nextion side */
 struct Nextion_values {
 	uint16_t RPM;
@@ -107,7 +108,7 @@ void HAL_CAN_ErrorCallback(CAN_HandleTypeDef *hcan);
 /* USER CODE BEGIN PFP */
 void button_handler(void);
 int can_msg_handler(uint8_t typemsg);
-void nextion_msg_handler(void);
+void data_update_handler(void);
 void startup(void);
 
 /* USER CODE END PFP */
@@ -562,7 +563,26 @@ int can_msg_handler(uint8_t typemsg) {
 	msg_type = msg_none; // SET NONE TYPE MSG
 	return 0; // return OK value to prevent endless loop
 }
-//TODO: define nextion_msg_handler() function
+void data_update_handler() {
+	Nextion.RPM = RxData.x600[0] + RxData.x600[1];
+	Nextion.TPS = RxData.x600[2];
+	Nextion.MAP = RxData.x600[3] + RxData.x600[4];
+	//0x600 {0_RPM, 1_RPM, 2_TPS, 3_IAT, 4_MAP, 5_MAP, 6_INJPW, 7_INJPW}
+	Nextion.AIN1 = RxData.x601[0] + RxData.x601[1];
+	Nextion.AIN2 = RxData.x601[2] + RxData.x601[3];
+	Nextion.AIN3 = RxData.x601[4] + RxData.x601[5];
+	Nextion.AIN4 = RxData.x601[6] + RxData.x601[7];
+	//0x601 {0_AIN1, 1_AIN1, 2_AIN2, 3_AIN2, 4_AIN3, 5_AIN3,6_AIN4, 7_AIN4}
+	Nextion.VSPD = RxData.x602[0] + RxData.x602[1];
+	Nextion.BARO = RxData.x602[3];
+	Nextion.OILT = RxData.x602[4];
+	Nextion.FUELP = RxData.x602[5];
+	Nextion.CLT = RxData.x602[6] + RxData.x602[7];
+	//0x602 {0_VSPD, 1_VSPD, 2_BARO, 3_OILT, 4_OILP, 5_FUELP, 6_CLT, 7_CLT}
+	Nextion.GEAR = RxData.x604[0];
+	Nextion.BATT = RxData.x604[2] + RxData.x604[3];
+	//0x604 {0_GEAR, 1_ECUTEMP, 2_BATT, 3_BATT, 4_ERRFLAG, 5_ERRFLAG, 6_FLAGS1, 7_ETHANOL}
+}
 void startup() {
 	HAL_GPIO_WritePin(CAN_LED_GPIO_Port, CAN_LED_Pin, 0);
 	TxHeader.StdId = 0x642;

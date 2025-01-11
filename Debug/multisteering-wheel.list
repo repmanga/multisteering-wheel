@@ -27,25 +27,25 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   ALLOC
  11 .ARM.attributes 00000029  00000000  00000000  00004010  2**0
                   CONTENTS, READONLY
- 12 .debug_info   00008666  00000000  00000000  00004039  2**0
+ 12 .debug_info   00008679  00000000  00000000  00004039  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 13 .debug_abbrev 000016ef  00000000  00000000  0000c69f  2**0
+ 13 .debug_abbrev 00001708  00000000  00000000  0000c6b2  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 14 .debug_aranges 00000778  00000000  00000000  0000dd90  2**3
+ 14 .debug_aranges 00000780  00000000  00000000  0000ddc0  2**3
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 15 .debug_rnglists 000005b7  00000000  00000000  0000e508  2**0
+ 15 .debug_rnglists 000005be  00000000  00000000  0000e540  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 16 .debug_macro  00016d37  00000000  00000000  0000eabf  2**0
+ 16 .debug_macro  00016d37  00000000  00000000  0000eafe  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 17 .debug_line   00008c55  00000000  00000000  000257f6  2**0
+ 17 .debug_line   00008cf4  00000000  00000000  00025835  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 18 .debug_str    00084138  00000000  00000000  0002e44b  2**0
+ 18 .debug_str    0008414c  00000000  00000000  0002e529  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 19 .comment      00000043  00000000  00000000  000b2583  2**0
+ 19 .comment      00000043  00000000  00000000  000b2675  2**0
                   CONTENTS, READONLY
- 20 .debug_frame  00001dc0  00000000  00000000  000b25c8  2**2
+ 20 .debug_frame  00001de0  00000000  00000000  000b26b8  2**2
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 21 .debug_line_str 00000061  00000000  00000000  000b4388  2**0
+ 21 .debug_line_str 00000061  00000000  00000000  000b4498  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
 
 Disassembly of section .text:
@@ -408,9 +408,9 @@ static void MX_CAN_Init(void) {
  800030e:	4b27      	ldr	r3, [pc, #156]	@ (80003ac <MX_CAN_Init+0xa4>)
  8000310:	4a27      	ldr	r2, [pc, #156]	@ (80003b0 <MX_CAN_Init+0xa8>)
  8000312:	601a      	str	r2, [r3, #0]
-	hcan.Init.Prescaler = 2;
+	hcan.Init.Prescaler = 4; // TJA1050 (CHN version cannot perform at 1MBit, only at 500kBit)
  8000314:	4b25      	ldr	r3, [pc, #148]	@ (80003ac <MX_CAN_Init+0xa4>)
- 8000316:	2202      	movs	r2, #2
+ 8000316:	2204      	movs	r2, #4
  8000318:	605a      	str	r2, [r3, #4]
 	hcan.Init.Mode = CAN_MODE_LOOPBACK;
  800031a:	4b24      	ldr	r3, [pc, #144]	@ (80003ac <MX_CAN_Init+0xa4>)
@@ -1655,7 +1655,11 @@ int can_msg_handler(uint8_t typemsg) {
  8000bd8:	20000000 	.word	0x20000000
 
 08000bdc <startup>:
-//TODO: define nextion_msg_handler() function
+	//0x602 {0_VSPD, 1_VSPD, 2_BARO, 3_OILT, 4_OILP, 5_FUELP, 6_CLT, 7_CLT}
+	Nextion.GEAR = RxData.x604[0];
+	Nextion.BATT = RxData.x604[2] + RxData.x604[3];
+	//0x604 {0_GEAR, 1_ECUTEMP, 2_BATT, 3_BATT, 4_ERRFLAG, 5_ERRFLAG, 6_FLAGS1, 7_ETHANOL}
+}
 void startup() {
  8000bdc:	b580      	push	{r7, lr}
  8000bde:	af00      	add	r7, sp, #0
