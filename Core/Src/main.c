@@ -21,8 +21,10 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "string.h"
-#include "stdbool.h"
+#include <stdbool.h>
+#include "NextionAPI.h"
+#include <string.h>
+#include <stdio.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -72,8 +74,8 @@ struct ID_MSG_Array {
 //0x604 {0_GEAR, 1_ECUTEMP, 2_BATT, 3_BATT, 4_ERRFLAG, 5_ERRFLAG, 6_FLAGS1, 7_ETHANOL}
 } RxData;
 
-/* Value conversion on Nextion side */
-struct Nextion_values {
+/* Value conversion on ECU side */
+struct ECU_values {
 	uint16_t RPM;
 	uint16_t MAP;
 	uint16_t AIN0;
@@ -93,7 +95,7 @@ struct Nextion_values {
 	uint8_t GEAR;
 	int8_t IAT;
 	int8_t ECUTEMP;
-} Nextion;
+} ECU;
 
 /* USER CODE END PV */
 
@@ -110,7 +112,7 @@ void button_handler(void);
 int can_msg_handler(uint8_t typemsg);
 void data_update_handler(void);
 void startup(void);
-
+void data_send_handler(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -187,6 +189,8 @@ int main(void) {
 	/* Infinite loop */
 	/* USER CODE BEGIN WHILE */
 	while (1) {
+		data_update_handler();
+		data_send_handler();
 		button_handler();
 		/* USER CODE END WHILE */
 		/* USER CODE BEGIN 3 */
@@ -381,8 +385,13 @@ static void MX_GPIO_Init(void) {
 
 /* USER CODE BEGIN 4 */
 void button_handler() {
-	static bool flag_btn1, flag_btn2, flag_btn3, flag_btn4, flag_btn5,
-			flag_btn6 = false; // Some flags for buttons
+	//TODO: add next page Nextion send
+	static bool flag_btn1 = false;
+	static bool flag_btn2 = false;
+	static bool flag_btn3 = false;
+	static bool flag_btn4 = false;
+	static bool flag_btn5 = false;
+	static bool flag_btn6 = false;  // Some flags for buttons
 	HAL_Delay(PILOT_FINGER_TAP_SPEED);
 	/* NEUTRAL GEAR BUTTON COMBINATION HANDLER */
 	if (HAL_GPIO_ReadPin(BTN_3_GPIO_Port, BTN_3_Pin)
@@ -564,24 +573,37 @@ int can_msg_handler(uint8_t typemsg) {
 	return 0; // return OK value to prevent endless loop
 }
 void data_update_handler() {
-	Nextion.RPM = RxData.x600[0] + RxData.x600[1];
-	Nextion.TPS = RxData.x600[2];
-	Nextion.MAP = RxData.x600[3] + RxData.x600[4];
+	ECU.RPM = RxData.x600[1];
+	ECU.RPM = ECU.RPM << 7;
+	ECU.RPM = ECU.RPM + RxData.x600[0];
+	//TODO: fix 2 byte variables (as below)
+	ECU.TPS = RxData.x600[2];
+	ECU.MAP = RxData.x600[3] + RxData.x600[4];
 	//0x600 {0_RPM, 1_RPM, 2_TPS, 3_IAT, 4_MAP, 5_MAP, 6_INJPW, 7_INJPW}
-	Nextion.AIN1 = RxData.x601[0] + RxData.x601[1];
-	Nextion.AIN2 = RxData.x601[2] + RxData.x601[3];
-	Nextion.AIN3 = RxData.x601[4] + RxData.x601[5];
-	Nextion.AIN4 = RxData.x601[6] + RxData.x601[7];
+	ECU.AIN1 = RxData.x601[0] + RxData.x601[1];
+	ECU.AIN2 = RxData.x601[2] + RxData.x601[3];
+	ECU.AIN3 = RxData.x601[4] + RxData.x601[5];
+	ECU.AIN4 = RxData.x601[6] + RxData.x601[7];
 	//0x601 {0_AIN1, 1_AIN1, 2_AIN2, 3_AIN2, 4_AIN3, 5_AIN3,6_AIN4, 7_AIN4}
-	Nextion.VSPD = RxData.x602[0] + RxData.x602[1];
-	Nextion.BARO = RxData.x602[3];
-	Nextion.OILT = RxData.x602[4];
-	Nextion.FUELP = RxData.x602[5];
-	Nextion.CLT = RxData.x602[6] + RxData.x602[7];
+	ECU.VSPD = RxData.x602[0] + RxData.x602[1];
+	ECU.BARO = RxData.x602[3];
+	ECU.OILT = RxData.x602[4];
+	ECU.FUELP = RxData.x602[5];
+	ECU.CLT = RxData.x602[6] + RxData.x602[7];
 	//0x602 {0_VSPD, 1_VSPD, 2_BARO, 3_OILT, 4_OILP, 5_FUELP, 6_CLT, 7_CLT}
-	Nextion.GEAR = RxData.x604[0];
-	Nextion.BATT = RxData.x604[2] + RxData.x604[3];
+	ECU.GEAR = RxData.x604[0];
+	ECU.BATT = RxData.x604[2] + RxData.x604[3];
 	//0x604 {0_GEAR, 1_ECUTEMP, 2_BATT, 3_BATT, 4_ERRFLAG, 5_ERRFLAG, 6_FLAGS1, 7_ETHANOL}
+}
+void data_send_handler(void){
+	//TODO: Add cmd send for last variables
+	static char cmd[50] = {0};
+	sprintf(cmd, "RP.txt=\"%d\"", ECU.RPM);
+	nextion_send(cmd);
+	sprintf(cmd, "GE.txt=\"%d\"", ECU.GEAR);
+	nextion_send(cmd);
+	sprintf(cmd, "SP.txt=\"%d\"", ECU.VSPD);
+	nextion_send(cmd);
 }
 void startup() {
 	HAL_GPIO_WritePin(CAN_LED_GPIO_Port, CAN_LED_Pin, 0);
