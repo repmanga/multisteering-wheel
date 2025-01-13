@@ -392,6 +392,7 @@ void button_handler() {
 	static bool flag_btn4 = false;
 	static bool flag_btn5 = false;
 	static bool flag_btn6 = false;  // Some flags for buttons
+	static uint8_t page = 0;
 	HAL_Delay(PILOT_FINGER_TAP_SPEED);
 	/* NEUTRAL GEAR BUTTON COMBINATION HANDLER */
 	if (HAL_GPIO_ReadPin(BTN_3_GPIO_Port, BTN_3_Pin)
@@ -497,7 +498,7 @@ void button_handler() {
 			&& (HAL_GetTick() - time_ms > 150) && !flag_btn5) {
 		flag_btn5 = !flag_btn5;
 		/* SEND USART NEXT SCREEN MSG HERE */
-
+		page = page + 1;
 		HAL_Delay(100);
 	}
 	if (!HAL_GPIO_ReadPin(BTN_5_GPIO_Port, BTN_5_Pin) && flag_btn5) {
@@ -509,12 +510,15 @@ void button_handler() {
 			&& (HAL_GetTick() - time_ms > 150) && !flag_btn6) {
 		flag_btn6 = !flag_btn6;
 		/* SEND USART PREVIOUS SCREEN MSG HERE */
-
+		page = page - 1;
 		HAL_Delay(100);
 	}
 	if (!HAL_GPIO_ReadPin(BTN_6_GPIO_Port, BTN_6_Pin) && flag_btn6) {
 		flag_btn6 = !flag_btn6;
 		//HAL_Delay(100);
+	}
+	if (page > 5 || page < 1){
+		page = 1;
 	}
 
 }
@@ -595,15 +599,22 @@ void data_update_handler() {
 	ECU.BATT = RxData.x604[2] + RxData.x604[3];
 	//0x604 {0_GEAR, 1_ECUTEMP, 2_BATT, 3_BATT, 4_ERRFLAG, 5_ERRFLAG, 6_FLAGS1, 7_ETHANOL}
 }
-void data_send_handler(void){
+void data_send_handler(void) {
 	//TODO: Add cmd send for last variables
-	static char cmd[50] = {0};
+	static char cmd[50] = { 0 };
 	sprintf(cmd, "RP.txt=\"%d\"", ECU.RPM);
 	nextion_send(cmd);
 	sprintf(cmd, "GE.txt=\"%d\"", ECU.GEAR);
 	nextion_send(cmd);
 	sprintf(cmd, "SP.txt=\"%d\"", ECU.VSPD);
 	nextion_send(cmd);
+	sprintf(cmd, "VO.txt=\"%d\"", ECU.BATT);
+	nextion_send(cmd);
+	sprintf(cmd, "OI.txt=\"%d\"", ECU.OILT);
+	nextion_send(cmd);
+	sprintf(cmd, "WA.txt=\"%d\"", ECU.CLT);
+	nextion_send(cmd);
+	//add fan ECU stream msg
 }
 void startup() {
 	HAL_GPIO_WritePin(CAN_LED_GPIO_Port, CAN_LED_Pin, 0);
