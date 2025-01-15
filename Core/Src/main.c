@@ -363,19 +363,19 @@ static void MX_GPIO_Init(void) {
 #endif
 	/*Configure GPIO pin : BTN_6_Pin */
 	GPIO_InitStruct.Pin = BTN_6_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+	GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
 	GPIO_InitStruct.Pull = GPIO_PULLDOWN;
 	HAL_GPIO_Init(BTN_6_GPIO_Port, &GPIO_InitStruct);
 
 	/*Configure GPIO pins : BTN_1_Pin BTN_2_Pin BTN_3_Pin BTN_4_Pin */
 	GPIO_InitStruct.Pin = BTN_1_Pin | BTN_2_Pin | BTN_3_Pin | BTN_4_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+	GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
 	GPIO_InitStruct.Pull = GPIO_PULLDOWN;
 	HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
 	/*Configure GPIO pin : BTN_5_Pin */
 	GPIO_InitStruct.Pin = BTN_5_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+	GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
 	GPIO_InitStruct.Pull = GPIO_PULLDOWN;
 	HAL_GPIO_Init(BTN_5_GPIO_Port, &GPIO_InitStruct);
 
@@ -386,7 +386,7 @@ static void MX_GPIO_Init(void) {
 /* USER CODE BEGIN 4 */
 void button_handler() {
 	//TODO: add next page Nextion send
-	static char cmd1[50] = { 0 };
+	static char cmd1[6] = { 0 };
 	static bool flag_btn1 = false;
 	static bool flag_btn2 = false;
 	static bool flag_btn3 = false;
