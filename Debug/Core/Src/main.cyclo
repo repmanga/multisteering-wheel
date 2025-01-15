@@ -5,9 +5,9 @@
 ../Core/Src/main.c:242:13:MX_CAN_Init	3
 ../Core/Src/main.c:290:13:MX_USART1_UART_Init	2
 ../Core/Src/main.c:321:13:MX_GPIO_Init	1
-../Core/Src/main.c:387:6:button_handler	45
-../Core/Src/main.c:525:5:can_msg_handler	11
-../Core/Src/main.c:579:6:data_update_handler	1
-../Core/Src/main.c:602:6:data_send_handler	1
-../Core/Src/main.c:619:6:startup	2
-../Core/Src/main.c:647:6:Error_Handler	1
+../Core/Src/main.c:387:6:button_handler	35
+../Core/Src/main.c:504:5:can_msg_handler	11
+../Core/Src/main.c:558:6:data_update_handler	1
+../Core/Src/main.c:582:6:data_send_handler	1
+../Core/Src/main.c:605:6:startup	2
+../Core/Src/main.c:633:6:Error_Handler	1

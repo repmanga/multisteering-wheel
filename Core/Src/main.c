@@ -250,7 +250,7 @@ static void MX_CAN_Init(void) {
 	/* USER CODE END CAN_Init 1 */
 	hcan.Instance = CAN1;
 	hcan.Init.Prescaler = 4; // TJA1050 (CHN version cannot perform at 1MBit, only at 500kBit)
-	hcan.Init.Mode = CAN_MODE_LOOPBACK;
+	hcan.Init.Mode = CAN_MODE_NORMAL;
 	hcan.Init.SyncJumpWidth = CAN_SJW_1TQ;
 	hcan.Init.TimeSeg1 = CAN_BS1_13TQ;
 	hcan.Init.TimeSeg2 = CAN_BS2_2TQ;
@@ -364,7 +364,7 @@ static void MX_GPIO_Init(void) {
 	/*Configure GPIO pin : BTN_6_Pin */
 	GPIO_InitStruct.Pin = BTN_6_Pin;
 	GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	GPIO_InitStruct.Pull = GPIO_PULLDOWN;
 	HAL_GPIO_Init(BTN_6_GPIO_Port, &GPIO_InitStruct);
 
 	/*Configure GPIO pins : BTN_1_Pin BTN_2_Pin BTN_3_Pin BTN_4_Pin */
@@ -376,7 +376,7 @@ static void MX_GPIO_Init(void) {
 	/*Configure GPIO pin : BTN_5_Pin */
 	GPIO_InitStruct.Pin = BTN_5_Pin;
 	GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	GPIO_InitStruct.Pull = GPIO_PULLDOWN;
 	HAL_GPIO_Init(BTN_5_GPIO_Port, &GPIO_InitStruct);
 
 	/* USER CODE BEGIN MX_GPIO_Init_2 */
@@ -386,39 +386,15 @@ static void MX_GPIO_Init(void) {
 /* USER CODE BEGIN 4 */
 void button_handler() {
 	//TODO: add next page Nextion send
+	static char cmd1[50] = { 0 };
 	static bool flag_btn1 = false;
 	static bool flag_btn2 = false;
 	static bool flag_btn3 = false;
 	static bool flag_btn4 = false;
 	static bool flag_btn5 = false;
 	static bool flag_btn6 = false;  // Some flags for buttons
-	static uint8_t page = 0;
+	static uint8_t pagenum = 1;
 	HAL_Delay(PILOT_FINGER_TAP_SPEED);
-	/* NEUTRAL GEAR BUTTON COMBINATION HANDLER */
-	if (HAL_GPIO_ReadPin(BTN_3_GPIO_Port, BTN_3_Pin)
-			&& HAL_GPIO_ReadPin(BTN_4_GPIO_Port, BTN_4_Pin)
-			&& (HAL_GetTick() - time_ms > 150) && !flag_btn3 && !flag_btn4) {
-		flag_btn3 = !flag_btn3;
-		flag_btn4 = !flag_btn4;
-		msg_type = gear_neutral;
-		can_msg_handler(msg_type);
-
-		/* SEND CAN NEUTRAL GEAR MSG HERE */
-#if DEBUG == 1
-		HAL_GPIO_TogglePin(LED3_GPIO_Port, LED3_Pin);
-		HAL_GPIO_TogglePin(LED4_GPIO_Port, LED4_Pin);
-		HAL_Delay(100);
-		HAL_GPIO_TogglePin(LED3_GPIO_Port, LED3_Pin);
-		HAL_GPIO_TogglePin(LED4_GPIO_Port, LED4_Pin);
-#endif
-	}
-	if (!HAL_GPIO_ReadPin(BTN_3_GPIO_Port, BTN_3_Pin)
-			&& !HAL_GPIO_ReadPin(BTN_4_GPIO_Port, BTN_4_Pin) && flag_btn3
-			&& flag_btn4) {
-		flag_btn3 = !flag_btn3;
-		flag_btn4 = !flag_btn4;
-		HAL_Delay(100);
-	}
 	/* GEAR UP BUTTON HANDLER */
 	if (HAL_GPIO_ReadPin(BTN_3_GPIO_Port, BTN_3_Pin)
 			&& !HAL_GPIO_ReadPin(BTN_4_GPIO_Port, BTN_4_Pin)
@@ -493,32 +469,35 @@ void button_handler() {
 		flag_btn2 = !flag_btn2;
 		HAL_Delay(100);
 	}
-	/* NEXT SCREEN BUTTON HANDLER */
+	/* NEUTRAL GEAR HANDLER */
 	if (HAL_GPIO_ReadPin(BTN_5_GPIO_Port, BTN_5_Pin)
 			&& (HAL_GetTick() - time_ms > 150) && !flag_btn5) {
 		flag_btn5 = !flag_btn5;
-		/* SEND USART NEXT SCREEN MSG HERE */
-		page = page + 1;
+		/* SEND CAN NEUTRAL GEAR HERE */
+		msg_type = gear_neutral;
+		can_msg_handler(msg_type);
 		HAL_Delay(100);
 	}
 	if (!HAL_GPIO_ReadPin(BTN_5_GPIO_Port, BTN_5_Pin) && flag_btn5) {
 		flag_btn5 = !flag_btn5;
 		//HAL_Delay(100);
 	}
-	/* PREVIOUS SCREEN BUTTON HANDLER */
+	/* NEXT SCREEN BUTTON HANDLER */
 	if (HAL_GPIO_ReadPin(BTN_6_GPIO_Port, BTN_6_Pin)
 			&& (HAL_GetTick() - time_ms > 150) && !flag_btn6) {
 		flag_btn6 = !flag_btn6;
-		/* SEND USART PREVIOUS SCREEN MSG HERE */
-		page = page - 1;
+		pagenum = pagenum + 1;
+		if (pagenum >= 6 || pagenum < 0) {
+			pagenum = 1;
+		}
+		/* SEND USART NEXT SCREEN MSG HERE */
+		sprintf(cmd1, "page page%d", pagenum);
+		nextion_send(cmd1);
 		HAL_Delay(100);
 	}
 	if (!HAL_GPIO_ReadPin(BTN_6_GPIO_Port, BTN_6_Pin) && flag_btn6) {
 		flag_btn6 = !flag_btn6;
 		//HAL_Delay(100);
-	}
-	if (page > 5 || page < 1){
-		page = 1;
 	}
 
 }
@@ -577,12 +556,11 @@ int can_msg_handler(uint8_t typemsg) {
 	return 0; // return OK value to prevent endless loop
 }
 void data_update_handler() {
-	ECU.RPM = RxData.x600[1];
-	ECU.RPM = ECU.RPM << 7;
+	ECU.RPM = RxData.x600[1] << 8;
 	ECU.RPM = ECU.RPM + RxData.x600[0];
-	//TODO: fix 2 byte variables (as below)
 	ECU.TPS = RxData.x600[2];
-	ECU.MAP = RxData.x600[3] + RxData.x600[4];
+	ECU.MAP = RxData.x600[5] << 8;
+	ECU.MAP = ECU.MAP + RxData.x600[4];
 	//0x600 {0_RPM, 1_RPM, 2_TPS, 3_IAT, 4_MAP, 5_MAP, 6_INJPW, 7_INJPW}
 	ECU.AIN1 = RxData.x601[0] + RxData.x601[1];
 	ECU.AIN2 = RxData.x601[2] + RxData.x601[3];
@@ -593,10 +571,12 @@ void data_update_handler() {
 	ECU.BARO = RxData.x602[3];
 	ECU.OILT = RxData.x602[4];
 	ECU.FUELP = RxData.x602[5];
-	ECU.CLT = RxData.x602[6] + RxData.x602[7];
+	ECU.CLT = RxData.x602[7] << 8;
+	ECU.CLT = ECU.CLT + RxData.x602[6];
 	//0x602 {0_VSPD, 1_VSPD, 2_BARO, 3_OILT, 4_OILP, 5_FUELP, 6_CLT, 7_CLT}
 	ECU.GEAR = RxData.x604[0];
-	ECU.BATT = RxData.x604[2] + RxData.x604[3];
+	ECU.BATT = RxData.x604[3] << 8;
+	ECU.BATT = ECU.BATT + RxData.x604[2];
 	//0x604 {0_GEAR, 1_ECUTEMP, 2_BATT, 3_BATT, 4_ERRFLAG, 5_ERRFLAG, 6_FLAGS1, 7_ETHANOL}
 }
 void data_send_handler(void) {
@@ -613,6 +593,12 @@ void data_send_handler(void) {
 	sprintf(cmd, "OI.txt=\"%d\"", ECU.OILT);
 	nextion_send(cmd);
 	sprintf(cmd, "WA.txt=\"%d\"", ECU.CLT);
+	nextion_send(cmd);
+	sprintf(cmd, "TP.txt=\"%d\"", ECU.TPS);
+	nextion_send(cmd);
+	sprintf(cmd, "MA.txt=\"%d\"", ECU.MAP);
+	nextion_send(cmd);
+	sprintf(cmd, "FU.txt=\"%d\"", ECU.FUELP);
 	nextion_send(cmd);
 	//add fan ECU stream msg
 }
