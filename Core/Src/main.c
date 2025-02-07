@@ -562,12 +562,17 @@ void data_update_handler() {
 	ECU.MAP = RxData.x600[5] << 8;
 	ECU.MAP = ECU.MAP + RxData.x600[4];
 	//0x600 {0_RPM, 1_RPM, 2_TPS, 3_IAT, 4_MAP, 5_MAP, 6_INJPW, 7_INJPW}
-	ECU.AIN1 = RxData.x601[0] + RxData.x601[1];
-	ECU.AIN2 = RxData.x601[2] + RxData.x601[3];
-	ECU.AIN3 = RxData.x601[4] + RxData.x601[5];
-	ECU.AIN4 = RxData.x601[6] + RxData.x601[7];
+	ECU.AIN1 = RxData.x601[0] << 8;
+	ECU.AIN1 = ECU.AIN1 + RxData.x601[1];
+	ECU.AIN2 = RxData.x601[2] << 8;
+	ECU.AIN2 = ECU.AIN2 + RxData.x601[3];
+	ECU.AIN3 = RxData.x601[4] << 8;
+	ECU.AIN3 = ECU.AIN3 + RxData.x601[5];
+	ECU.AIN4 = RxData.x601[6] << 8;
+	ECU.AIN4 = ECU.AIN4 + RxData.x601[7];
 	//0x601 {0_AIN1, 1_AIN1, 2_AIN2, 3_AIN2, 4_AIN3, 5_AIN3,6_AIN4, 7_AIN4}
-	ECU.VSPD = RxData.x602[0] + RxData.x602[1];
+	ECU.VSPD = RxData.x602[0] << 8;
+	ECU.VSPD = ECU.VSPD + RxData.x602[1];
 	ECU.BARO = RxData.x602[3];
 	ECU.OILT = RxData.x602[4];
 	ECU.FUELP = RxData.x602[5];
