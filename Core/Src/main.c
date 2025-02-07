@@ -140,11 +140,6 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan) {
 				RxData.x604[i] = RxData.buff[i];
 			}
 		}
-#if DEBUG == 1
-		if (RxHeader.StdId == 0x642) {
-			HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
-		}
-#endif
 	}
 }
 void HAL_CAN_ErrorCallback(CAN_HandleTypeDef *hcan) {
@@ -250,7 +245,7 @@ static void MX_CAN_Init(void) {
 	/* USER CODE END CAN_Init 1 */
 	hcan.Instance = CAN1;
 	hcan.Init.Prescaler = 4; // TJA1050 (CHN version cannot perform at 1MBit, only at 500kBit)
-	hcan.Init.Mode = CAN_MODE_LOOPBACK;
+	hcan.Init.Mode = CAN_MODE_NORMAL;
 	hcan.Init.SyncJumpWidth = CAN_SJW_1TQ;
 	hcan.Init.TimeSeg1 = CAN_BS1_13TQ;
 	hcan.Init.TimeSeg2 = CAN_BS2_2TQ;
@@ -432,7 +427,9 @@ void button_handler() {
 		flag_btn4 = !flag_btn4;
 		/* SEND USART NEXT SCREEN MSG HERE */
 		page = page + 1;
+		HAL_GPIO_TogglePin(LED4_GPIO_Port, LED4_Pin);
 		HAL_Delay(100);
+		HAL_GPIO_TogglePin(LED4_GPIO_Port, LED4_Pin);
 	}
 	if (!HAL_GPIO_ReadPin(BTN_4_GPIO_Port, BTN_4_Pin) && flag_btn4) {
 		flag_btn4 = !flag_btn4;
@@ -444,13 +441,15 @@ void button_handler() {
 		flag_btn3 = !flag_btn3;
 		/* SEND USART PREVIOUS SCREEN MSG HERE */
 		page = page - 1;
+		HAL_GPIO_TogglePin(LED3_GPIO_Port, LED3_Pin);
 		HAL_Delay(100);
+		HAL_GPIO_TogglePin(LED3_GPIO_Port, LED3_Pin);
 	}
 	if (!HAL_GPIO_ReadPin(BTN_3_GPIO_Port, BTN_3_Pin) && flag_btn3) {
 		flag_btn3 = !flag_btn3;
 		//HAL_Delay(100);
 	}
-	if (page > 5 || page < 1){
+	if (page > 5 || page < 1) {
 		page = 1;
 	}
 
@@ -559,13 +558,11 @@ void startup() {
 	TxHeader.TransmitGlobalTime = 0;
 	while (HAL_CAN_Start(&hcan) == HAL_ERROR)
 		;
-	HAL_CAN_ActivateNotification(&hcan, CAN_IT_RX_FIFO0_MSG_PENDING);
+	HAL_CAN_ActivateNotification(&hcan, CAN_IT_RX_FIFO0_MSG_PENDING | CAN_IT_ERROR);
 	/* SOME LED BLINK FOR SUCCESSFUL STARTUP*/
-#if DEBUG == 1
 	HAL_GPIO_WritePin(GPIOB, LED1_Pin | LED2_Pin | LED3_Pin | LED4_Pin, 1);
 	HAL_Delay(200);
 	HAL_GPIO_WritePin(GPIOB, LED1_Pin | LED2_Pin | LED3_Pin | LED4_Pin, 0);
-#endif
 	HAL_GPIO_WritePin(CAN_LED_GPIO_Port, CAN_LED_Pin, 1);
 	HAL_Delay(200);
 	HAL_GPIO_WritePin(CAN_LED_GPIO_Port, CAN_LED_Pin, 0);
