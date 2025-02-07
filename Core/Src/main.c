@@ -386,6 +386,7 @@ void button_handler() {
 	static bool flag_btn3 = false;
 	static bool flag_btn4 = false;
 	static uint8_t page = 0;
+	static char cmd1[50] = { 0 };
 	HAL_Delay(PILOT_FINGER_TAP_SPEED);
 	/* ENGINE STARTUP BUTTON HANDLER */
 	if (HAL_GPIO_ReadPin(BTN_1_GPIO_Port, BTN_1_Pin)
@@ -427,9 +428,15 @@ void button_handler() {
 		flag_btn4 = !flag_btn4;
 		/* SEND USART NEXT SCREEN MSG HERE */
 		page = page + 1;
+		if (page > 5 || page < 1) {
+			page = 1;
+		}
+		sprintf(cmd1, "page=%d, page");
+		nextion_send(cmd1);
 		HAL_GPIO_TogglePin(LED4_GPIO_Port, LED4_Pin);
 		HAL_Delay(100);
 		HAL_GPIO_TogglePin(LED4_GPIO_Port, LED4_Pin);
+
 	}
 	if (!HAL_GPIO_ReadPin(BTN_4_GPIO_Port, BTN_4_Pin) && flag_btn4) {
 		flag_btn4 = !flag_btn4;
@@ -441,6 +448,11 @@ void button_handler() {
 		flag_btn3 = !flag_btn3;
 		/* SEND USART PREVIOUS SCREEN MSG HERE */
 		page = page - 1;
+		if (page > 5 || page < 1) {
+			page = 1;
+		}
+		sprintf(cmd1, "page=%d, page");
+		nextion_send(cmd1);
 		HAL_GPIO_TogglePin(LED3_GPIO_Port, LED3_Pin);
 		HAL_Delay(100);
 		HAL_GPIO_TogglePin(LED3_GPIO_Port, LED3_Pin);
@@ -449,9 +461,7 @@ void button_handler() {
 		flag_btn3 = !flag_btn3;
 		//HAL_Delay(100);
 	}
-	if (page > 5 || page < 1) {
-		page = 1;
-	}
+
 
 }
 int can_msg_handler(uint8_t typemsg) {
