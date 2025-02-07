@@ -428,10 +428,10 @@ void button_handler() {
 		flag_btn4 = !flag_btn4;
 		/* SEND USART NEXT SCREEN MSG HERE */
 		page = page + 1;
-		if (page > 5 || page < 1) {
+		if (page > 5) {
 			page = 1;
 		}
-		sprintf(cmd1, "page=%d, page");
+		sprintf(cmd1, "page page%d", page);
 		nextion_send(cmd1);
 		HAL_GPIO_TogglePin(LED4_GPIO_Port, LED4_Pin);
 		HAL_Delay(100);
@@ -448,10 +448,10 @@ void button_handler() {
 		flag_btn3 = !flag_btn3;
 		/* SEND USART PREVIOUS SCREEN MSG HERE */
 		page = page - 1;
-		if (page > 5 || page < 1) {
-			page = 1;
+		if (page < 1) {
+			page = 5;
 		}
-		sprintf(cmd1, "page=%d, page");
+		sprintf(cmd1, "page page%d", page);
 		nextion_send(cmd1);
 		HAL_GPIO_TogglePin(LED3_GPIO_Port, LED3_Pin);
 		HAL_Delay(100);
