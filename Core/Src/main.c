@@ -390,71 +390,8 @@ void button_handler() {
 	static bool flag_btn2 = false;
 	static bool flag_btn3 = false;
 	static bool flag_btn4 = false;
-	static bool flag_btn5 = false;
-	static bool flag_btn6 = false;  // Some flags for buttons
 	static uint8_t page = 0;
 	HAL_Delay(PILOT_FINGER_TAP_SPEED);
-	/* NEUTRAL GEAR BUTTON COMBINATION HANDLER */
-	if (HAL_GPIO_ReadPin(BTN_3_GPIO_Port, BTN_3_Pin)
-			&& HAL_GPIO_ReadPin(BTN_4_GPIO_Port, BTN_4_Pin)
-			&& (HAL_GetTick() - time_ms > 150) && !flag_btn3 && !flag_btn4) {
-		flag_btn3 = !flag_btn3;
-		flag_btn4 = !flag_btn4;
-		msg_type = gear_neutral;
-		can_msg_handler(msg_type);
-
-		/* SEND CAN NEUTRAL GEAR MSG HERE */
-#if DEBUG == 1
-		HAL_GPIO_TogglePin(LED3_GPIO_Port, LED3_Pin);
-		HAL_GPIO_TogglePin(LED4_GPIO_Port, LED4_Pin);
-		HAL_Delay(100);
-		HAL_GPIO_TogglePin(LED3_GPIO_Port, LED3_Pin);
-		HAL_GPIO_TogglePin(LED4_GPIO_Port, LED4_Pin);
-#endif
-	}
-	if (!HAL_GPIO_ReadPin(BTN_3_GPIO_Port, BTN_3_Pin)
-			&& !HAL_GPIO_ReadPin(BTN_4_GPIO_Port, BTN_4_Pin) && flag_btn3
-			&& flag_btn4) {
-		flag_btn3 = !flag_btn3;
-		flag_btn4 = !flag_btn4;
-		HAL_Delay(100);
-	}
-	/* GEAR UP BUTTON HANDLER */
-	if (HAL_GPIO_ReadPin(BTN_3_GPIO_Port, BTN_3_Pin)
-			&& !HAL_GPIO_ReadPin(BTN_4_GPIO_Port, BTN_4_Pin)
-			&& (HAL_GetTick() - time_ms > 150) && !flag_btn3) {
-		flag_btn3 = !flag_btn3;
-		/* SEND CAN GEAR UP MSG HERE */
-		msg_type = gear_up;
-		can_msg_handler(msg_type);
-#if DEBUG == 1
-		HAL_GPIO_TogglePin(LED3_GPIO_Port, LED3_Pin);
-		HAL_Delay(100);
-		HAL_GPIO_TogglePin(LED3_GPIO_Port, LED3_Pin);
-#endif
-	}
-	if (!HAL_GPIO_ReadPin(BTN_3_GPIO_Port, BTN_3_Pin) && flag_btn3) {
-		flag_btn3 = 0;
-		HAL_Delay(100);
-	}
-	/* GEAR DOWN BUTTON HANDLER */
-	if (HAL_GPIO_ReadPin(BTN_4_GPIO_Port, BTN_4_Pin)
-			&& !HAL_GPIO_ReadPin(BTN_3_GPIO_Port, BTN_3_Pin)
-			&& (HAL_GetTick() - time_ms > 150) && !flag_btn4) {
-		flag_btn4 = !flag_btn4;
-		/* SEND CAN GEAR DOWN MSG HERE */
-		msg_type = gear_down;
-		can_msg_handler(msg_type);
-#if DEBUG == 1
-		HAL_GPIO_TogglePin(LED4_GPIO_Port, LED4_Pin);
-		HAL_Delay(100);
-		HAL_GPIO_TogglePin(LED4_GPIO_Port, LED4_Pin);
-#endif
-	}
-	if (!HAL_GPIO_ReadPin(BTN_4_GPIO_Port, BTN_4_Pin) && flag_btn4) {
-		flag_btn4 = !flag_btn4;
-		HAL_Delay(100);
-	}
 	/* ENGINE STARTUP BUTTON HANDLER */
 	if (HAL_GPIO_ReadPin(BTN_1_GPIO_Port, BTN_1_Pin)
 			&& (HAL_GetTick() - time_ms > 150) && !flag_btn1) {
@@ -465,11 +402,9 @@ void button_handler() {
 			can_msg_handler(msg_type);
 			HAL_Delay(1);
 			/* ENGINE STARTUP SWITCH IS NOT LATCHING ! */
-#if DEBUG == 1
 			HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
 			HAL_Delay(100);
 			HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
-#endif
 		}
 	}
 	if (!HAL_GPIO_ReadPin(BTN_1_GPIO_Port, BTN_1_Pin) && flag_btn1) {
@@ -483,38 +418,36 @@ void button_handler() {
 		/* SEND CAN STOP ENGINE MSG HERE */
 		msg_type = engn_stop;
 		can_msg_handler(msg_type);
-#if DEBUG == 1
 		HAL_GPIO_TogglePin(LED2_GPIO_Port, LED2_Pin);
 		HAL_Delay(100);
 		HAL_GPIO_TogglePin(LED2_GPIO_Port, LED2_Pin);
-#endif
 	}
 	if (!HAL_GPIO_ReadPin(BTN_2_GPIO_Port, BTN_2_Pin) && flag_btn2) {
 		flag_btn2 = !flag_btn2;
 		HAL_Delay(100);
 	}
 	/* NEXT SCREEN BUTTON HANDLER */
-	if (HAL_GPIO_ReadPin(BTN_5_GPIO_Port, BTN_5_Pin)
-			&& (HAL_GetTick() - time_ms > 150) && !flag_btn5) {
-		flag_btn5 = !flag_btn5;
+	if (HAL_GPIO_ReadPin(BTN_4_GPIO_Port, BTN_4_Pin)
+			&& (HAL_GetTick() - time_ms > 150) && !flag_btn4) {
+		flag_btn4 = !flag_btn4;
 		/* SEND USART NEXT SCREEN MSG HERE */
 		page = page + 1;
 		HAL_Delay(100);
 	}
-	if (!HAL_GPIO_ReadPin(BTN_5_GPIO_Port, BTN_5_Pin) && flag_btn5) {
-		flag_btn5 = !flag_btn5;
+	if (!HAL_GPIO_ReadPin(BTN_4_GPIO_Port, BTN_4_Pin) && flag_btn4) {
+		flag_btn4 = !flag_btn4;
 		//HAL_Delay(100);
 	}
 	/* PREVIOUS SCREEN BUTTON HANDLER */
-	if (HAL_GPIO_ReadPin(BTN_6_GPIO_Port, BTN_6_Pin)
-			&& (HAL_GetTick() - time_ms > 150) && !flag_btn6) {
-		flag_btn6 = !flag_btn6;
+	if (HAL_GPIO_ReadPin(BTN_3_GPIO_Port, BTN_3_Pin)
+			&& (HAL_GetTick() - time_ms > 150) && !flag_btn3) {
+		flag_btn3 = !flag_btn3;
 		/* SEND USART PREVIOUS SCREEN MSG HERE */
 		page = page - 1;
 		HAL_Delay(100);
 	}
-	if (!HAL_GPIO_ReadPin(BTN_6_GPIO_Port, BTN_6_Pin) && flag_btn6) {
-		flag_btn6 = !flag_btn6;
+	if (!HAL_GPIO_ReadPin(BTN_3_GPIO_Port, BTN_3_Pin) && flag_btn3) {
+		flag_btn3 = !flag_btn3;
 		//HAL_Delay(100);
 	}
 	if (page > 5 || page < 1){
