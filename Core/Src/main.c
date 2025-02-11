@@ -446,7 +446,7 @@ void button_handler() {
 	if (HAL_GPIO_ReadPin(BTN_3_GPIO_Port, BTN_3_Pin)
 			&& (HAL_GetTick() - time_ms > 150) && !flag_btn3) {
 		flag_btn3 = !flag_btn3;
-		/* SEND USART PREVIOUS SCREEN MSG HERE */
+		/* SEND USART PREVIOUS SCREEN MSG HERE 1*/
 		page = page - 1;
 		if (page < 1) {
 			page = 5;
