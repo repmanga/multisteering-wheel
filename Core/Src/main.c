@@ -52,6 +52,7 @@ UART_HandleTypeDef huart1;
 CAN_TxHeaderTypeDef TxHeader;
 CAN_RxHeaderTypeDef RxHeader;
 uint8_t TxData[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };      // Output buffer
+uint8_t RxData[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };	     // Input buffer
 uint32_t TxMailbox = 0;
 uint8_t msg_type = 255;
 uint32_t time_ms = 0;
