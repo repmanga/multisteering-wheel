@@ -34,8 +34,24 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define PILOT_FINGER_TAP_SPEED 150
-#define DEBUG 1 // set "1" if use dev board
+/* GPIO Pin Definitions */
+#define BTN_GEAR_NEUTRAL_PIN      (GPIO_PIN_15)   /* PC15 */
+#define BTN_GEAR_NEUTRAL_PORT     (GPIOC)
+
+#define BTN_NEXT_PAGE_PIN         (GPIO_PIN_0)    /* PA0 */
+#define BTN_NEXT_PAGE_PORT        (GPIOA)
+
+#define BTN_ENG_STOP_PIN          (GPIO_PIN_3)    /* PA3 */
+#define BTN_ENG_STOP_PORT         (GPIOA)
+
+#define BTN_ENG_START_PIN         (GPIO_PIN_4)    /* PA4 */
+#define BTN_ENG_START_PORT        (GPIOA)
+
+#define BTN_GEAR_UP_PIN           (GPIO_PIN_6)    /* PB6 */
+#define BTN_GEAR_UP_PORT          (GPIOB)
+
+#define BTN_GEAR_DOWN_PIN         (GPIO_PIN_7)    /* PB7 */
+#define BTN_GEAR_DOWN_PORT        (GPIOB)
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -49,54 +65,67 @@ CAN_HandleTypeDef hcan;
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
-CAN_TxHeaderTypeDef TxHeader;
-CAN_RxHeaderTypeDef RxHeader;
-uint8_t TxData[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };      // Output buffer
-uint8_t RxData[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };	     // Input buffer
-uint32_t TxMailbox = 0;
-uint8_t msg_type = 255;
-uint32_t time_ms = 0;
 
-enum can_msg_type {
-	engn_start, engn_stop, gear_up, gear_down, gear_neutral, msg_none
-} can_msg_type;
+/* CAN message type enumeration */
+typedef enum {
+	ENGIN_START  	= 0U,
+	ENGIN_STOP	 	= 1U,
+	GEAR_UP		 	= 2U,
+	GEAR_DOWN	 	= 3U,
+	GEAR_NEUTRAL 	= 4U,
+	MSG_NONE	 	= 5U
+} CanMsgType;
 
-/* Some buffers for CAN MSGs */
-/* Value update frequency 20 Hz */
-struct ID_MSG_Array {
-	uint8_t buff[8]; // input buffer
-	uint8_t x600[8]; // (ID 0x600)
-	//0x600 {0_RPM, 1_RPM, 2_TPS, 3_IAT, 4_MAP, 5_MAP, 6_INJPW, 7_INJPW}
-	uint8_t x601[8]; // (ID 0x601)
-	//0x601 {0_AIN1, 1_AIN1, 2_AIN2, 3_AIN2, 4_AIN3, 5_AIN3,6_AIN4, 7_AIN4}
-	uint8_t x602[8]; // (ID 0x602)
-	//0x602 {0_VSPD, 1_VSPD, 2_BARO, 3_OILT, 4_OILP, 5_FUELP, 6_CLT, 7_CLT}
-	uint8_t x604[8]; // (ID 0x604)
-//0x604 {0_GEAR, 1_ECUTEMP, 2_BATT, 3_BATT, 4_ERRFLAG, 5_ERRFLAG, 6_FLAGS1, 7_ETHANOL}
-} RxData;
+/* CAN message buffers structure */
+typedef struct {
+	uint8_t buff[8U]; /* Input buffer */
+	uint8_t x600[8U]; /* ID 0x600: RPM, TPS, MAP, etc. */
+	uint8_t x601[8U]; /* ID 0x601: AIN1-AIN4 */
+	uint8_t x602[8U]; /* ID 0x602: VSPD, BARO, CLT, etc. */
+	uint8_t x604[8U]; /* ID 0x604: GEAR, BATT, etc. */
+} IdMsgArray;
 
-/* Value conversion on ECU side */
-struct ECU_values {
-	uint16_t RPM;
-	uint16_t MAP;
-	uint16_t AIN0;
-	uint16_t AIN1;
-	uint16_t AIN2;
-	uint16_t AIN3;
-	uint16_t AIN4;
-	uint16_t VSPD;
-	uint16_t BATT;
-	uint16_t ERRFLAG;
-	int16_t CLT;
-	uint8_t TPS;
-	uint8_t BARO;
-	uint8_t OILT;
-	uint8_t OILP;
-	uint8_t FUELP;
-	uint8_t GEAR;
-	int8_t IAT;
-	int8_t ECUTEMP;
-} ECU;
+/* ECU values structure */
+typedef struct {
+	uint16_t 	RPM;
+	uint16_t 	MAP;
+	uint16_t 	AIN0;
+	uint16_t 	AIN1;
+	uint16_t 	AIN2;
+	uint16_t 	AIN3;
+	uint16_t 	AIN4;
+	uint16_t 	VSPD;
+	uint16_t 	BATT;
+	uint16_t 	ERRFLAG;
+	int16_t 	CLT;
+	uint8_t 	TPS;
+	uint8_t 	BARO;
+	uint8_t 	OILT;
+	uint8_t 	OILP;
+	uint8_t 	FUELP;
+	uint8_t 	GEAR;
+	int8_t 		IAT;
+	int8_t 		ECUTEMP;
+	int8_t 		FAN;
+} EcuValues;
+
+/* Global variables */
+static CAN_TxHeaderTypeDef TxHeader = {
+		.StdId = 0U,
+		.ExtId = 0U,
+		.IDE = CAN_ID_STD,
+		.RTR = CAN_RTR_DATA,
+		.DLC = 0U,
+		.TransmitGlobalTime = 0U
+};
+
+static CAN_RxHeaderTypeDef RxHeader = { 0U };
+static uint8_t TxData[8U] = { 0U, 0U, 0U, 0U, 0U, 0U, 0U, 0U };
+static uint32_t TxMailbox = 0U;
+static char cmd[50U] = { 0U };
+static char cmd_page[50U] = { 0U };
+static IdMsgArray RxData = { 0U };
+static EcuValues ECU = { 0U };
 
 /* USER CODE END PV */
 
@@ -105,52 +134,18 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_CAN_Init(void);
 static void MX_USART1_UART_Init(void);
-void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan);
-void HAL_CAN_ErrorCallback(CAN_HandleTypeDef *hcan);
-
 /* USER CODE BEGIN PFP */
 void button_handler(void);
 int can_msg_handler(uint8_t typemsg);
 void data_update_handler(void);
 void startup(void);
 void data_send_handler(void);
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan) {
-	if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &RxHeader, RxData.buff)
-			== HAL_OK) {
-		if (RxHeader.StdId == 0x600) {
-			for (uint8_t i = 0; i < 7; i++) {
-				RxData.x600[i] = RxData.buff[i];
-			}
-		}
-		if (RxHeader.StdId == 0x601) {
-			for (uint8_t i = 0; i < 7; i++) {
-				RxData.x601[i] = RxData.buff[i];
-			}
-		}
-		if (RxHeader.StdId == 0x602) {
-			for (uint8_t i = 0; i < 7; i++) {
-				RxData.x602[i] = RxData.buff[i];
-			}
-		}
-		if (RxHeader.StdId == 0x604) {
-			for (uint8_t i = 0; i < 7; i++) {
-				RxData.x604[i] = RxData.buff[i];
-			}
-		}
-#if DEBUG == 1
-		if (RxHeader.StdId == 0x642) {
-			HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
-		}
-#endif
-	}
-}
-void HAL_CAN_ErrorCallback(CAN_HandleTypeDef *hcan) {
-	Error_Handler();
-}
+
 /* USER CODE END 0 */
 
 /**
@@ -190,10 +185,9 @@ int main(void) {
 	/* Infinite loop */
 	/* USER CODE BEGIN WHILE */
 	while (1) {
-		data_update_handler();
-		data_send_handler();
-		button_handler();
+
 		/* USER CODE END WHILE */
+
 		/* USER CODE BEGIN 3 */
 	}
 	/* USER CODE END 3 */
@@ -210,13 +204,12 @@ void SystemClock_Config(void) {
 	/** Initializes the RCC Oscillators according to the specified parameters
 	 * in the RCC_OscInitTypeDef structure.
 	 */
-	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
-	RCC_OscInitStruct.HSEState = RCC_HSE_ON;
-	RCC_OscInitStruct.HSEPredivValue = RCC_HSE_PREDIV_DIV1;
+	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
 	RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+	RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
 	RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-	RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-	RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL8;
+	RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI_DIV2;
+	RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL16;
 	if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
 		Error_Handler();
 	}
@@ -250,7 +243,7 @@ static void MX_CAN_Init(void) {
 
 	/* USER CODE END CAN_Init 1 */
 	hcan.Instance = CAN1;
-	hcan.Init.Prescaler = 4; // TJA1050 (CHN version cannot perform at 1MBit, only at 500kBit)
+	hcan.Init.Prescaler = 4U;
 	hcan.Init.Mode = CAN_MODE_NORMAL;
 	hcan.Init.SyncJumpWidth = CAN_SJW_1TQ;
 	hcan.Init.TimeSeg1 = CAN_BS1_13TQ;
@@ -260,18 +253,18 @@ static void MX_CAN_Init(void) {
 	hcan.Init.AutoWakeUp = DISABLE;
 	hcan.Init.AutoRetransmission = DISABLE;
 	hcan.Init.ReceiveFifoLocked = DISABLE;
-	hcan.Init.TransmitFifoPriority = ENABLE;
+	hcan.Init.TransmitFifoPriority = DISABLE;
 	if (HAL_CAN_Init(&hcan) != HAL_OK) {
 		Error_Handler();
 	}
 	/* USER CODE BEGIN CAN_Init 2 */
-	sFilterConfig.FilterBank = 0;
+	sFilterConfig.FilterBank = 0U;
 	sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
 	sFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;
-	sFilterConfig.FilterIdHigh = 0x0000;
-	sFilterConfig.FilterIdLow = 0x0000;
-	sFilterConfig.FilterMaskIdHigh = 0x0000;
-	sFilterConfig.FilterMaskIdLow = 0x0000;
+	sFilterConfig.FilterIdHigh = 0x0000U;
+	sFilterConfig.FilterIdLow = 0x0000U;
+	sFilterConfig.FilterMaskIdHigh = 0x0000U;
+	sFilterConfig.FilterMaskIdLow = 0x0000U;
 	sFilterConfig.FilterFIFOAssignment = CAN_RX_FIFO0;
 	sFilterConfig.FilterActivation = ENABLE;
 	//sFilterConfig.SlaveStartFilterBank = 14;
@@ -298,7 +291,7 @@ static void MX_USART1_UART_Init(void) {
 
 	/* USER CODE END USART1_Init 1 */
 	huart1.Instance = USART1;
-	huart1.Init.BaudRate = 115200;
+	huart1.Init.BaudRate = 115200U;
 	huart1.Init.WordLength = UART_WORDLENGTH_8B;
 	huart1.Init.StopBits = UART_STOPBITS_1;
 	huart1.Init.Parity = UART_PARITY_NONE;
@@ -326,19 +319,11 @@ static void MX_GPIO_Init(void) {
 
 	/* GPIO Ports Clock Enable */
 	__HAL_RCC_GPIOC_CLK_ENABLE();
-	__HAL_RCC_GPIOD_CLK_ENABLE();
-	__HAL_RCC_GPIOB_CLK_ENABLE();
 	__HAL_RCC_GPIOA_CLK_ENABLE();
+	__HAL_RCC_GPIOB_CLK_ENABLE();
 
 	/*Configure GPIO pin Output Level */
 	HAL_GPIO_WritePin(CAN_LED_GPIO_Port, CAN_LED_Pin, GPIO_PIN_RESET);
-#if DEBUG == 1
-	/*Configure GPIO pin Output Level */
-	HAL_GPIO_WritePin(GPIOB, LED1_Pin | LED2_Pin | LED3_Pin | LED4_Pin,
-			GPIO_PIN_RESET);
-#endif
-	/*Configure GPIO pin Output Level */
-	HAL_GPIO_WritePin(BUZZER_GPIO_Port, BUZZER_Pin, GPIO_PIN_RESET);
 
 	/*Configure GPIO pin : CAN_LED_Pin */
 	GPIO_InitStruct.Pin = CAN_LED_Pin;
@@ -346,290 +331,274 @@ static void MX_GPIO_Init(void) {
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
 	HAL_GPIO_Init(CAN_LED_GPIO_Port, &GPIO_InitStruct);
-#if DEBUG == 1
-	/*Configure GPIO pins : LED1_Pin LED2_Pin LED3_Pin LED4_Pin */
-	GPIO_InitStruct.Pin = LED1_Pin | LED2_Pin | LED3_Pin | LED4_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-	HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-#ifdef BUZZER
-	/*Configure GPIO pin : BUZZER_Pin */
-	GPIO_InitStruct.Pin = BUZZER_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-	HAL_GPIO_Init(BUZZER_GPIO_Port, &GPIO_InitStruct);
-#endif
-#endif
-	/*Configure GPIO pin : BTN_6_Pin */
-	GPIO_InitStruct.Pin = BTN_6_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-	GPIO_InitStruct.Pull = GPIO_PULLDOWN;
-	HAL_GPIO_Init(BTN_6_GPIO_Port, &GPIO_InitStruct);
 
-	/*Configure GPIO pins : BTN_1_Pin BTN_2_Pin BTN_3_Pin BTN_4_Pin */
-	GPIO_InitStruct.Pin = BTN_1_Pin | BTN_2_Pin | BTN_3_Pin | BTN_4_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-	GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+	/*Configure GPIO pin : PC15 */
+	GPIO_InitStruct.Pin = GPIO_PIN_15;
+	GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+	GPIO_InitStruct.Pull = GPIO_PULLUP;
+	HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+	/*Configure GPIO pin : PA0 */
+	GPIO_InitStruct.Pin = GPIO_PIN_0;
+	GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+	/*Configure GPIO pin : PA3 */
+	GPIO_InitStruct.Pin = GPIO_PIN_3;
+	GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+	GPIO_InitStruct.Pull = GPIO_PULLUP;
+	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+	/*Configure GPIO pin : PA4 */
+	GPIO_InitStruct.Pin = GPIO_PIN_4;
+	GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
+	GPIO_InitStruct.Pull = GPIO_PULLUP;
+	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+	/*Configure GPIO pins : PB6 PB7 */
+	GPIO_InitStruct.Pin = GPIO_PIN_6 | GPIO_PIN_7;
+	GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+	GPIO_InitStruct.Pull = GPIO_PULLUP;
 	HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-	/*Configure GPIO pin : BTN_5_Pin */
-	GPIO_InitStruct.Pin = BTN_5_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-	GPIO_InitStruct.Pull = GPIO_PULLDOWN;
-	HAL_GPIO_Init(BTN_5_GPIO_Port, &GPIO_InitStruct);
+	/* EXTI interrupt init*/
+	HAL_NVIC_SetPriority(EXTI0_IRQn, 0, 0);
+	HAL_NVIC_EnableIRQ(EXTI0_IRQn);
+
+	HAL_NVIC_SetPriority(EXTI3_IRQn, 0, 0);
+	HAL_NVIC_EnableIRQ(EXTI3_IRQn);
+
+	HAL_NVIC_SetPriority(EXTI4_IRQn, 0, 0);
+	HAL_NVIC_EnableIRQ(EXTI4_IRQn);
+
+	HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0);
+	HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
+
+	HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
+	HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
 	/* USER CODE BEGIN MX_GPIO_Init_2 */
 	/* USER CODE END MX_GPIO_Init_2 */
 }
 
 /* USER CODE BEGIN 4 */
-void button_handler() {
-	//TODO: add next page Nextion send
-	static char cmd1[6] = { 0 };
-	static bool flag_btn1 = false;
-	static bool flag_btn2 = false;
-	static bool flag_btn3 = false;
-	static bool flag_btn4 = false;
-	static bool flag_btn5 = false;
-	static bool flag_btn6 = false;  // Some flags for buttons
-	static uint8_t pagenum = 1;
-	HAL_Delay(PILOT_FINGER_TAP_SPEED);
-	/* GEAR UP BUTTON HANDLER */
-	if (HAL_GPIO_ReadPin(BTN_3_GPIO_Port, BTN_3_Pin)
-			&& !HAL_GPIO_ReadPin(BTN_4_GPIO_Port, BTN_4_Pin)
-			&& (HAL_GetTick() - time_ms > 150) && !flag_btn3) {
-		flag_btn3 = !flag_btn3;
-		/* SEND CAN GEAR UP MSG HERE */
-		msg_type = gear_up;
-		can_msg_handler(msg_type);
-#if DEBUG == 1
-		HAL_GPIO_TogglePin(LED3_GPIO_Port, LED3_Pin);
-		HAL_Delay(100);
-		HAL_GPIO_TogglePin(LED3_GPIO_Port, LED3_Pin);
-#endif
-	}
-	if (!HAL_GPIO_ReadPin(BTN_3_GPIO_Port, BTN_3_Pin) && flag_btn3) {
-		flag_btn3 = 0;
-		HAL_Delay(100);
-	}
-	/* GEAR DOWN BUTTON HANDLER */
-	if (HAL_GPIO_ReadPin(BTN_4_GPIO_Port, BTN_4_Pin)
-			&& !HAL_GPIO_ReadPin(BTN_3_GPIO_Port, BTN_3_Pin)
-			&& (HAL_GetTick() - time_ms > 150) && !flag_btn4) {
-		flag_btn4 = !flag_btn4;
-		/* SEND CAN GEAR DOWN MSG HERE */
-		msg_type = gear_down;
-		can_msg_handler(msg_type);
-#if DEBUG == 1
-		HAL_GPIO_TogglePin(LED4_GPIO_Port, LED4_Pin);
-		HAL_Delay(100);
-		HAL_GPIO_TogglePin(LED4_GPIO_Port, LED4_Pin);
-#endif
-	}
-	if (!HAL_GPIO_ReadPin(BTN_4_GPIO_Port, BTN_4_Pin) && flag_btn4) {
-		flag_btn4 = !flag_btn4;
-		HAL_Delay(100);
-	}
-	/* ENGINE STARTUP BUTTON HANDLER */
-	if (HAL_GPIO_ReadPin(BTN_1_GPIO_Port, BTN_1_Pin)
-			&& (HAL_GetTick() - time_ms > 150) && !flag_btn1) {
-		flag_btn1 = !flag_btn1;
-		while (HAL_GPIO_ReadPin(BTN_1_GPIO_Port, BTN_1_Pin)) {
-			/* SEND CAN MSG ENGINE STARTUP HERE */
-			msg_type = engn_start;
-			can_msg_handler(msg_type);
-			HAL_Delay(1);
-			/* ENGINE STARTUP SWITCH IS NOT LATCHING ! */
-#if DEBUG == 1
-			HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
-			HAL_Delay(100);
-			HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
-#endif
-		}
-	}
-	if (!HAL_GPIO_ReadPin(BTN_1_GPIO_Port, BTN_1_Pin) && flag_btn1) {
-		flag_btn1 = !flag_btn1;
-		HAL_Delay(100);
-	}
-	/* ENGINE STOP BUTTON HANDLER */
-	if (HAL_GPIO_ReadPin(BTN_2_GPIO_Port, BTN_2_Pin)
-			&& (HAL_GetTick() - time_ms > 150) && !flag_btn2) {
-		flag_btn2 = !flag_btn2;
-		/* SEND CAN STOP ENGINE MSG HERE */
-		msg_type = engn_stop;
-		can_msg_handler(msg_type);
-#if DEBUG == 1
-		HAL_GPIO_TogglePin(LED2_GPIO_Port, LED2_Pin);
-		HAL_Delay(100);
-		HAL_GPIO_TogglePin(LED2_GPIO_Port, LED2_Pin);
-#endif
-	}
-	if (!HAL_GPIO_ReadPin(BTN_2_GPIO_Port, BTN_2_Pin) && flag_btn2) {
-		flag_btn2 = !flag_btn2;
-		HAL_Delay(100);
-	}
-	/* NEUTRAL GEAR HANDLER */
-	if (HAL_GPIO_ReadPin(BTN_5_GPIO_Port, BTN_5_Pin)
-			&& (HAL_GetTick() - time_ms > 150) && !flag_btn5) {
-		flag_btn5 = !flag_btn5;
-		/* SEND CAN NEUTRAL GEAR HERE */
-		msg_type = gear_neutral;
-		can_msg_handler(msg_type);
-		HAL_Delay(100);
-	}
-	if (!HAL_GPIO_ReadPin(BTN_5_GPIO_Port, BTN_5_Pin) && flag_btn5) {
-		flag_btn5 = !flag_btn5;
-		//HAL_Delay(100);
-	}
-	/* NEXT SCREEN BUTTON HANDLER */
-	if (HAL_GPIO_ReadPin(BTN_6_GPIO_Port, BTN_6_Pin)
-			&& (HAL_GetTick() - time_ms > 150) && !flag_btn6) {
-		flag_btn6 = !flag_btn6;
-		pagenum = pagenum + 1;
-		if (pagenum >= 6 || pagenum < 0) {
-			pagenum = 1;
-		}
-		/* SEND USART NEXT SCREEN MSG HERE */
-		sprintf(cmd1, "page page%d", pagenum);
-		nextion_send(cmd1);
-		HAL_Delay(100);
-	}
-	if (!HAL_GPIO_ReadPin(BTN_6_GPIO_Port, BTN_6_Pin) && flag_btn6) {
-		flag_btn6 = !flag_btn6;
-		//HAL_Delay(100);
-	}
 
-}
 int can_msg_handler(uint8_t typemsg) {
+	TxHeader.StdId = 0x642U;
 	switch (typemsg) {
-	case engn_start:
-		/* MSG START ENGINE */
-		TxHeader.StdId = 0x643;
-		TxData[4] = 0b00000001; //using binary system to make bit set more clear
-		while (HAL_CAN_GetTxMailboxesFreeLevel(&hcan) == 0)
-			; //CAN SW#0
-		HAL_CAN_AddTxMessage(&hcan, &TxHeader, TxData, &TxMailbox);
-		TxData[4] = 0x00;
+	case ENGIN_START:
+		TxData[4U] = 0x01U;
 		break;
-	case engn_stop:
-		/* MSG STOP ENGINE */
-		TxHeader.StdId = 0x642;
-		TxData[4] = 0b00000010; //CAN SW#1
-		while (HAL_CAN_GetTxMailboxesFreeLevel(&hcan) == 0)
-			;
-		HAL_CAN_AddTxMessage(&hcan, &TxHeader, TxData, &TxMailbox);
-		TxData[4] = 0x00;
+	case ENGIN_STOP:
+		TxData[4U] = 0x02U;
 		break;
-	case gear_up:
-		/* MSG GEAR UP */
-		TxHeader.StdId = 0x642;
-		TxData[4] = 0b00000100; //CAN SW#2
-		while (HAL_CAN_GetTxMailboxesFreeLevel(&hcan) == 0)
-			;
-		HAL_CAN_AddTxMessage(&hcan, &TxHeader, TxData, &TxMailbox);
-		TxData[4] = 0x00;
+	case GEAR_UP:
+		TxData[4U] = 0x04U;
 		break;
-	case gear_down:
-		/* MSG GEAR DOWN */
-		TxHeader.StdId = 0x642;
-		TxData[4] = 0b00001000; //CAN SW #3
-		while (HAL_CAN_GetTxMailboxesFreeLevel(&hcan) == 0)
-			;
-		HAL_CAN_AddTxMessage(&hcan, &TxHeader, TxData, &TxMailbox);
-		TxData[4] = 0x00;
+	case GEAR_DOWN:
+		TxData[4U] = 0x08U;
 		break;
-	case gear_neutral:
-		/* MSG GEAR NEUTRAL */
-		TxHeader.StdId = 0x642;
-		TxData[4] = 0b00010000; //CAN SW#4
-		while (HAL_CAN_GetTxMailboxesFreeLevel(&hcan) == 0)
-			;
-		HAL_CAN_AddTxMessage(&hcan, &TxHeader, TxData, &TxMailbox);
-		TxData[4] = 0x00;
+	case GEAR_NEUTRAL:
+		TxData[4U] = 0x10U;
 		break;
 	default:
-		/* MSG NONE */
+		TxData[4U] = 0x00U;
 		break;
 	}
-	msg_type = msg_none; // SET NONE TYPE MSG
-	return 0; // return OK value to prevent endless loop
+
+	uint32_t timeout = 100U;
+	while ((HAL_CAN_GetTxMailboxesFreeLevel(&hcan) == 0U) && (timeout > 0U)) {
+		timeout--;
+	}
+
+	if (HAL_CAN_AddTxMessage(&hcan, &TxHeader, TxData, &TxMailbox) != HAL_OK) {
+		return -1;
+	}
+	return 0;
 }
-void data_update_handler() {
-	ECU.RPM = RxData.x600[1] << 8;
-	ECU.RPM = ECU.RPM + RxData.x600[0];
-	ECU.TPS = RxData.x600[2];
-	ECU.MAP = RxData.x600[5] << 8;
-	ECU.MAP = ECU.MAP + RxData.x600[4];
-	//0x600 {0_RPM, 1_RPM, 2_TPS, 3_IAT, 4_MAP, 5_MAP, 6_INJPW, 7_INJPW}
-	ECU.AIN1 = RxData.x601[0] << 8;
-	ECU.AIN1 = ECU.AIN1 + RxData.x601[1];
-	ECU.AIN2 = RxData.x601[2] << 8;
-	ECU.AIN2 = ECU.AIN2 + RxData.x601[3];
-	ECU.AIN3 = RxData.x601[4] << 8;
-	ECU.AIN3 = ECU.AIN3 + RxData.x601[5];
-	ECU.AIN4 = RxData.x601[6] << 8;
-	ECU.AIN4 = ECU.AIN4 + RxData.x601[7];
-	//0x601 {0_AIN1, 1_AIN1, 2_AIN2, 3_AIN2, 4_AIN3, 5_AIN3,6_AIN4, 7_AIN4}
-	ECU.VSPD = RxData.x602[0] << 8;
-	ECU.VSPD = ECU.VSPD + RxData.x602[1];
-	ECU.BARO = RxData.x602[3];
-	ECU.OILT = RxData.x602[4];
-	ECU.FUELP = RxData.x602[5];
-	ECU.CLT = RxData.x602[7] << 8;
-	ECU.CLT = ECU.CLT + RxData.x602[6];
-	//0x602 {0_VSPD, 1_VSPD, 2_BARO, 3_OILT, 4_OILP, 5_FUELP, 6_CLT, 7_CLT}
-	ECU.GEAR = RxData.x604[0];
-	ECU.BATT = RxData.x604[3] << 8;
-	ECU.BATT = ECU.BATT + RxData.x604[2];
-	//0x604 {0_GEAR, 1_ECUTEMP, 2_BATT, 3_BATT, 4_ERRFLAG, 5_ERRFLAG, 6_FLAGS1, 7_ETHANOL}
+
+/**
+ * @brief  Update ECU data from CAN messages
+ * @note   Converts raw CAN data to ECU structure format
+ * @retval None
+ */
+void data_update_handler(void) {
+	/* Macro to combine two bytes into a word (MISRA compliant version) */
+	#define BYTES_TO_WORD(high, low)  ((uint16_t)(((uint16_t)(high) << 8U) | (low)))
+
+	/* Process CAN ID 0x600 data */
+	ECU.RPM = BYTES_TO_WORD(RxData.x600[1U], RxData.x600[0U]);
+	ECU.TPS = RxData.x600[2U];
+	ECU.MAP = BYTES_TO_WORD(RxData.x600[5U], RxData.x600[4U]);
+
+	/* Process CAN ID 0x601 data */
+	ECU.AIN1 = BYTES_TO_WORD(RxData.x601[0U], RxData.x601[1U]);
+	ECU.AIN2 = BYTES_TO_WORD(RxData.x601[2U], RxData.x601[3U]);
+	ECU.AIN3 = BYTES_TO_WORD(RxData.x601[4U], RxData.x601[5U]);
+	ECU.AIN4 = BYTES_TO_WORD(RxData.x601[6U], RxData.x601[7U]);
+
+	/* Process CAN ID 0x602 data */
+	ECU.VSPD = 	BYTES_TO_WORD(RxData.x602[0U], RxData.x602[1U]);
+	ECU.BARO = 	RxData.x602[3U];
+	ECU.OILT = 	RxData.x602[4U];
+	ECU.FUELP = RxData.x602[5U];
+	ECU.CLT = BYTES_TO_WORD(RxData.x602[7U], RxData.x602[6U]);
+
+	/* Process CAN ID 0x604 data */
+	ECU.GEAR = RxData.x604[0U];
+	ECU.BATT = BYTES_TO_WORD(RxData.x604[3U], RxData.x604[2U]);
+
+	#undef BYTES_TO_WORD  /* Limit macro scope */
 }
+
 void data_send_handler(void) {
-	//TODO: Add cmd send for last variables
-	static char cmd[50] = { 0 };
-	sprintf(cmd, "RP.txt=\"%d\"", ECU.RPM);
-	nextion_send(cmd);
-	sprintf(cmd, "GE.txt=\"%d\"", ECU.GEAR);
-	nextion_send(cmd);
-	sprintf(cmd, "SP.txt=\"%d\"", ECU.VSPD);
-	nextion_send(cmd);
-	sprintf(cmd, "VO.txt=\"%d\"", ECU.BATT);
-	nextion_send(cmd);
-	sprintf(cmd, "OI.txt=\"%d\"", ECU.OILT);
-	nextion_send(cmd);
-	sprintf(cmd, "WA.txt=\"%d\"", ECU.CLT);
-	nextion_send(cmd);
-	sprintf(cmd, "TP.txt=\"%d\"", ECU.TPS);
-	nextion_send(cmd);
-	sprintf(cmd, "MA.txt=\"%d\"", ECU.MAP);
-	nextion_send(cmd);
-	sprintf(cmd, "FU.txt=\"%d\"", ECU.FUELP);
-	nextion_send(cmd);
-	//add fan ECU stream msg
+    const struct {
+        const char *format;
+        int value;
+    } commands[] = {
+        {"v.RP.val=%d", (int)ECU.RPM},
+        {"v.GE.val=%d", (int)ECU.GEAR},
+        {"v.SP.val=%d", (int)ECU.VSPD},
+        {"v.BA.val=%d", (int)ECU.BATT},
+        {"v.OT.val=%d", (int)ECU.OILT},
+        {"v.WA.val=%d", (int)ECU.CLT}
+    };
+
+    for (size_t i = 0U; i < sizeof(commands)/sizeof(commands[0]); i++) {
+        if (sprintf(cmd, commands[i].format, commands[i].value) > 0) {
+            (void)nextion_send(cmd);
+        }
+    }
 }
-void startup() {
-	HAL_GPIO_WritePin(CAN_LED_GPIO_Port, CAN_LED_Pin, 0);
-	TxHeader.StdId = 0x642;
-	TxHeader.ExtId = 0;
-	TxHeader.RTR = CAN_RTR_DATA; // CAN_RTR_REMOTE
-	TxHeader.IDE = CAN_ID_STD;   // USE STANDART ID
-	TxHeader.DLC = 8;
-	TxHeader.TransmitGlobalTime = 0;
-	while (HAL_CAN_Start(&hcan) == HAL_ERROR)
-		;
-	HAL_CAN_ActivateNotification(&hcan, CAN_IT_RX_FIFO0_MSG_PENDING);
-	/* SOME LED BLINK FOR SUCCESSFUL STARTUP*/
-#if DEBUG == 1
-	HAL_GPIO_WritePin(GPIOB, LED1_Pin | LED2_Pin | LED3_Pin | LED4_Pin, 1);
-	HAL_Delay(200);
-	HAL_GPIO_WritePin(GPIOB, LED1_Pin | LED2_Pin | LED3_Pin | LED4_Pin, 0);
-#endif
-	HAL_GPIO_WritePin(CAN_LED_GPIO_Port, CAN_LED_Pin, 1);
-	HAL_Delay(200);
-	HAL_GPIO_WritePin(CAN_LED_GPIO_Port, CAN_LED_Pin, 0);
-	time_ms = HAL_GetTick();
+
+/**
+ * @brief  Initialize CAN peripheral and perform startup sequence
+ * @retval None
+ */
+void startup(void) {
+	const uint32_t led_blink_delay = 200U;
+
+	/* Initialize LED */
+	HAL_GPIO_WritePin(CAN_LED_GPIO_Port, CAN_LED_Pin, GPIO_PIN_RESET);
+
+	/* Configure CAN TX header */
+	TxHeader.StdId = 0x642U;
+	TxHeader.ExtId = 0x00U;
+	TxHeader.RTR = CAN_RTR_DATA;
+	TxHeader.IDE = CAN_ID_STD;
+	TxHeader.DLC = 8U;
+	TxHeader.TransmitGlobalTime = 0U;
+
+	/* Start CAN peripheral with error handling */
+	while (HAL_CAN_Start(&hcan) == HAL_ERROR) {
+		/* Add timeout handling if required by MISRA Rule 17.2 */
+		(void) Error_Handler();
+	}
+
+	/* Activate CAN notifications */
+	(void) HAL_CAN_ActivateNotification(&hcan,
+	CAN_IT_RX_FIFO0_MSG_PENDING | CAN_IT_ERROR);
+
+	/* Visual startup indication */
+	HAL_GPIO_WritePin(CAN_LED_GPIO_Port, CAN_LED_Pin, GPIO_PIN_SET);
+	HAL_Delay(led_blink_delay);
+	HAL_GPIO_WritePin(CAN_LED_GPIO_Port, CAN_LED_Pin, GPIO_PIN_RESET);
+
 }
+
+/**
+ * @brief  CAN RX Fifo0 callback
+ * @param  hcan: Specifies the CAN instance
+ * @retval None
+ */
+void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan) {
+	uint8_t *target = NULL;
+
+	if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &RxHeader, RxData.buff)
+			!= HAL_OK) {
+		return;
+	}
+
+	switch (RxHeader.StdId) {
+	case 0x600U:
+		target = RxData.x600;
+		break;
+	case 0x601U:
+		target = RxData.x601;
+		break;
+	case 0x602U:
+		target = RxData.x602;
+		break;
+	case 0x604U:
+		target = RxData.x604;
+		break;
+	default:
+		/* Неизвестный ID - намеренно ничего не делаем */
+		break;
+	}
+
+	if (target != NULL) {
+		(void) memcpy(target, RxData.buff, 7U);
+		(void) data_update_handler();
+		(void) data_send_handler();
+	}
+}
+
+/**
+ * @brief  EXTI line detection callback
+ * @param  GPIO_Pin: Specifies the port pin connected to corresponding EXTI line
+ * @retval None
+ */
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
+	typedef struct {
+		uint16_t pin;
+		uint8_t cmd;
+		bool is_engine_start;
+	} ButtonAction;
+
+	static const ButtonAction button_map[] = {
+			{ BTN_ENG_STOP_PIN, 	BTN_ENG_START_PORT, 	false },
+			{ BTN_GEAR_NEUTRAL_PIN,	BTN_GEAR_NEUTRAL_PORT, 	false },
+			{ BTN_GEAR_UP_PIN,		BTN_GEAR_UP_PORT, 		false },
+			{ BTN_GEAR_DOWN_PIN,	BTN_GEAR_DOWN_PORT, 	false },
+			{ BTN_ENG_START_PIN, 	BTN_ENG_START_PORT, 	true },
+			{ BTN_NEXT_PAGE_PIN, 	0x00U, 					false } /* Special case */
+	};
+
+	const size_t button_count = sizeof(button_map) / sizeof(button_map[0]);
+	static uint8_t page_num = 1U;
+	const uint8_t max_page = 5U;
+
+	for (size_t i = 0U; i < button_count; i++) {
+		if (GPIO_Pin == button_map[i].pin) {
+			if (button_map[i].is_engine_start) {
+				/* Engine start button special handling */
+				if (HAL_GPIO_ReadPin(BTN_ENG_START_PORT, BTN_ENG_START_PIN)
+						== GPIO_PIN_RESET) {
+					(void) can_msg_handler(button_map[i].cmd);
+				} else {
+					TxData[4U] = 0x00U;
+					while (HAL_CAN_GetTxMailboxesFreeLevel(&hcan) == 0U) {
+						/* Wait for mailbox availability */
+					}
+					(void) HAL_CAN_AddTxMessage(&hcan, &TxHeader, TxData,
+							&TxMailbox);
+				}
+			} else if (button_map[i].pin == BTN_NEXT_PAGE_PIN) {
+				/* Page switching logic */
+				page_num = (page_num % max_page) + 1U;
+				(void) sprintf(cmd_page, "page %u", page_num);
+				(void) nextion_send(cmd_page);
+			} else {
+				/* Standard button handling */
+				(void) can_msg_handler(button_map[i].cmd);
+			}
+			break;
+		}
+	}
+}
+
 /* USER CODE END 4 */
 
 /**
@@ -637,15 +606,27 @@ void startup() {
  * @retval None
  */
 void Error_Handler(void) {
-	/* USER CODE BEGIN Error_Handler_Debug */
-	/* User can add his own implementation to report the HAL error return state */
+	static const uint32_t error_blink_delay = 5000U;
+	static const char error_msg[] = "v.ERRFLAG.txt=\"ERRFLAG\"";
+
+	/* Disable all interrupts */
 	__disable_irq();
-	while (1) {
-		HAL_GPIO_WritePin(CAN_LED_GPIO_Port, CAN_LED_Pin, 1);
-		HAL_Delay(5000);
+
+	/* Infinite error handling loop */
+	for (;;) {
+		/* Visual error indication */
+		(void) HAL_GPIO_WritePin(CAN_LED_GPIO_Port, CAN_LED_Pin, GPIO_PIN_SET);
+		(void) HAL_Delay(error_blink_delay);
+
+		/* Send error message to display */
+		(void) nextion_send(error_msg);
+
+		/* System reset */
 		HAL_NVIC_SystemReset();
+
+		/* Safety in case reset fails */
+		__NOP();
 	}
-	/* USER CODE END Error_Handler_Debug */
 }
 
 #ifdef  USE_FULL_ASSERT
